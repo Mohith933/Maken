@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maken — Workspace</title>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
+  <script>(function(){var t=localStorage.getItem('makenTheme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+
+  <style>
+    /* ── Hero: full viewport, workspace atmosphere ── */
+    .hero{
+      margin-top:0;min-height:100dvh;
+      display:flex;align-items:center;justify-content:center;
+      padding:calc(var(--header-h) + 24px) 24px 160px;
+      position:relative;overflow:hidden;
+    }
+    .hero::before{
+      content:'';position:absolute;top:42%;left:50%;
+      width:600px;height:600px;transform:translate(-50%,-50%);
+      background:radial-gradient(circle,rgba(79,143,255,0.07) 0%,transparent 68%);
+      pointer-events:none;
+    }
+    .hero::after{
+      content:'';position:absolute;inset:0;
+      background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+      background-size:56px 56px;
+      mask-image:radial-gradient(ellipse 65% 65% at 50% 50%,black 20%,transparent 100%);
+      opacity:0.28;pointer-events:none;
+    }
+    .hero-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;}
+
+    .hero-badge{
+      display:inline-flex;align-items:center;gap:7px;
+      background:var(--accent-soft);border:1px solid rgba(79,143,255,0.22);
+      color:var(--accent);padding:5px 14px;border-radius:99px;
+      font-size:0.72rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;
+      animation:heroIn 0.6s 0.05s both;
+    }
+    .badge-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 2.2s ease infinite;}
+    @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.2;}}
+
+    .hero h1{
+      font-family:'DM Serif Display',serif;
+      font-size:clamp(2rem,6vw,3.6rem);font-weight:400;line-height:1.13;
+      color:var(--text);max-width:580px;margin-bottom:0;
+      animation:heroIn 0.65s 0.13s both;
+    }
+    .hero h1 em{font-style:italic;color:var(--accent);}
+
+    /* workspace action pills under heading */
+    .hero-actions-mini{
+      display:flex;flex-wrap:wrap;gap:7px;justify-content:center;
+      animation:heroIn 0.65s 0.2s both;
+    }
+    .action-pill{
+      font-size:0.76rem;font-weight:600;color:var(--text-muted);
+      background:var(--surface);border:1px solid var(--border-light);
+      padding:4px 11px;border-radius:99px;
+    }
+
+    .subtext{font-size:0.9rem;color:var(--text-muted);font-weight:500;animation:heroIn 0.65s 0.26s both;}
+
+    .suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:4px;animation:heroIn 0.65s 0.32s both;}
+    .suggestions button{
+      display:flex;align-items:center;gap:7px;
+      background:var(--surface);border:1px solid var(--border-light);
+      color:var(--text-muted);padding:10px 20px;border-radius:99px;
+      font-family:'Quicksand',sans-serif;font-size:0.88rem;font-weight:600;
+      cursor:pointer;transition:all var(--transition);
+    }
+    .suggestions button:hover{
+      background:var(--surface2);border-color:var(--accent);
+      color:var(--text);transform:translateY(-2px);
+      box-shadow:0 6px 18px rgba(79,143,255,0.18);
+    }
+    [data-theme="light"] .suggestions button{color:#555;}
+    [data-theme="light"] .suggestions button:hover{color:#111;}
+    .chip-icon{font-size:1rem;}
+
+    /* ── Header serif brand ── */
+    .header h4{
+      font-family:'DM Serif Display',serif;
+      font-size:1.15rem;font-weight:400;color:var(--text);letter-spacing:0;
+    }
+    .header h4 .grey{
+      font-family:'Quicksand',sans-serif;font-size:0.68rem;font-weight:700;
+      letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);
+      vertical-align:middle;margin-left:7px;
+    }
+
+    /* ── AI avatar row ── */
+    .ai-row{display:flex;align-items:flex-start;gap:12px;animation:msgIn 0.35s ease both;max-width:96%;align-self:flex-start;}
+    .ai-avatar{
+      width:30px;height:30px;min-width:30px;
+      background:var(--accent-soft);border:1px solid rgba(79,143,255,0.2);
+      border-radius:9px;display:flex;align-items:center;justify-content:center;
+      color:var(--accent);margin-top:1px;
+    }
+    .ai-avatar svg{width:15px;height:15px;}
+    .ai-content{flex:1;font-size:0.95rem;line-height:1.7;color:var(--text);word-break:break-word;text-align:left;}
+    .ai-row .ai-message{background:none!important;border:none!important;padding:0!important;margin:0!important;max-width:100%!important;animation:none!important;}
+
+    /* ── Response label ── */
+    .bravexa-intro{font-size:0.78rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+    .bravexa-divider{border:none;height:1px;background:var(--border);margin:14px 0;}
+    .bravexa-body h2{font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+    .bravexa-outro{font-size:0.82rem;color:var(--text-muted);font-style:italic;margin-top:12px;}
+
+    /* ── Input frosted ── */
+    .input-box{background:rgba(17,17,17,0.88);backdrop-filter:blur(14px);}
+    [data-theme="light"] .input-box{background:rgba(255,255,255,0.9);}
+
+    /* ── Footer ── */
+    .footer{font-size:0.64rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);background:transparent;}
+
+    /* ── Theme toggle btn ── */
+    .theme-toggle-btn{
+      background:none;border:1px solid var(--border-light);color:var(--text-muted);
+      width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;transition:all var(--transition);flex-shrink:0;
+    }
+    .theme-toggle-btn:hover{background:var(--surface2);border-color:var(--text-muted);color:var(--text);transform:rotate(14deg) scale(1.08);}
+    [data-theme="dark"]  .icon-sun{display:none;}
+    [data-theme="dark"]  .icon-moon{display:block;}
+    [data-theme="light"] .icon-moon{display:none;}
+    [data-theme="light"] .icon-sun{display:block;}
+
+    /* ── Scroll pill ── */
+    .scroll-btn{
+      position:fixed;bottom:105px;left:50%;
+      transform:translateX(-50%) translateY(8px);
+      background:var(--surface);border:1px solid var(--border-light);
+      color:var(--text-muted);padding:6px 14px;border-radius:99px;
+      font-family:'Quicksand',sans-serif;font-size:0.78rem;font-weight:600;
+      display:flex;align-items:center;gap:6px;cursor:pointer;
+      opacity:0;pointer-events:none;transition:all var(--transition);z-index:650;
+    }
+    .scroll-btn.visible{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0);}
+    .scroll-btn:hover{background:var(--surface2);color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.25);}
+
+    /* ── Sidebar brand color fix ── */
+    [data-theme="light"] .sidebar-brand{color:#111;}
+    [data-theme="light"] .history-item{color:#555;}
+    [data-theme="light"] .code-content{color:#24292f;}
+
+    @media(max-width:768px){
+      .hero h1{font-size:clamp(1.7rem,7vw,2.4rem);}
+      .hero{padding-bottom:180px;}
+      .ai-row{max-width:100%;}
+      .hero-actions-mini{gap:5px;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══ -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-brand">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" style="stroke:#4f8fff"/>
+        <path d="M13 6L8 13H12L11 18L16 11H12L13 6Z" fill="#4f8fff"/>
+      </svg>
+      <span>Maken</span>
+    </div>
+    <button id="closeSidebarBtn" class="icon-btn" title="Close">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <a href="dashboard.html" class="new-chat">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>
+    <span>New Session</span>
+  </a>
+  <p>Recents</p>
+  <div id="historyList" class="history-list"></div>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- ══ HEADER ══ -->
+<header class="header">
+  <button id="menuToggle" class="menu-btn" aria-label="Open menu">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+      <path d="M4 7H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M4 12H16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M4 17H12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <h4>Maken <span class="grey">Workspace</span></h4>
+
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle theme" aria-label="Toggle theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none">
+        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button id="editLogoBtn" class="edit-btn" title="New session">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- ══ HERO ══ -->
+<div class="hero" id="heroSection">
+  <div class="hero-inner">
+
+    <div class="hero-badge"><span class="badge-dot"></span>Build Space</div>
+
+    <h1>What do you want<br>to <em>make</em> today?</h1>
+
+    <div class="hero-actions-mini">
+      <span class="action-pill">💻 Code</span>
+      <span class="action-pill">🌐 Website</span>
+      <span class="action-pill">✍️ Write</span>
+      <span class="action-pill">🔧 Fix</span>
+      <span class="action-pill">📎 Files</span>
+    </div>
+
+    <p class="subtext">Describe it — Maken builds it.</p>
+
+    <div class="suggestions">
+      <button id="codeBtn"><span class="chip-icon">💻</span> Fix my code</button>
+      <button id="websiteBtn"><span class="chip-icon">🌐</span> Build a website</button>
+      <button id="writeBtn"><span class="chip-icon">✍️</span> Write something</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ CHAT WINDOW ══ -->
+<div class="chat-window" id="chatWindow" style="display:none;"></div>
+
+<!-- Scroll pill -->
+<button class="scroll-btn" id="scrollBtn">
+  <svg viewBox="0 0 24 24" width="12" height="12" fill="none">
+    <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  Latest
+</button>
+
+<!-- ══ INPUT ══ -->
+<div class="input-box" id="inputBox">
+  <div id="previewContainer" class="preview-container"></div>
+  <textarea placeholder="Describe what to make…" class="chatbox" id="userinput" rows="1"></textarea>
+  <div class="bottom-row">
+    <div class="left-section">
+      <button class="plus-btn" id="plusBtn" title="Attach">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div class="upload-dropdown" id="uploadDropdown" style="display:none;">
+        <ul>
+          <li>
+            <label for="imageUpload">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              Image<input type="file" id="imageUpload" accept="image/*" hidden>
+            </label>
+          </li>
+          <li>
+            <label for="fileUpload">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              File<input type="file" id="fileUpload" hidden>
+            </label>
+          </li>
+          <li>
+            <button id="screenshotBtn">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M3 9V6a2 2 0 0 1 2-2h2M15 4h2a2 2 0 0 1 2 2v3M21 15v2a2 2 0 0 1-2 2h-2M9 20H7a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+              Screenshot
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="right-section">
+      <i class="voice-icon" id="voiceIconEl" title="Voice input">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 14 0h-2zM11 20h2v2h-2z"/>
+        </svg>
+      </i>
+      <button class="send-btn" id="sendBtn" aria-label="Send">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+          <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footer">Build space · Fast · Private · No login</div>
+
+<script src="script.js"></script>
+<script>
+  // ── THEME ──
+  const themeBtn = document.getElementById("themeToggleBtn");
+  function applyTheme(t){
+    document.documentElement.setAttribute("data-theme",t);
+    localStorage.setItem("makenTheme",t);
+  }
+  themeBtn.addEventListener("click",()=>{
+    applyTheme(document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark");
+  });
+  if(!localStorage.getItem("makenTheme")){
+    applyTheme(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  }
+
+  // ── SCROLL PILL ──
+  const scrollBtn = document.getElementById("scrollBtn");
+  window.addEventListener("scroll",()=>{
+    scrollBtn.classList.toggle("visible",document.body.scrollHeight-window.scrollY-window.innerHeight>240);
+  });
+  scrollBtn.addEventListener("click",()=>window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}));
+
+  // ── WRAP AI MESSAGES IN AVATAR ROW ──
+  (function(){
+    const cw=document.getElementById("chatWindow");
+    if(!cw)return;
+    function wrap(node){
+      if(!node.classList||!node.classList.contains("ai-message"))return;
+      if(node.closest(".ai-row"))return;
+      const row=document.createElement("div");row.className="ai-row";
+      const av=document.createElement("div");av.className="ai-avatar";
+      av.innerHTML=`<svg viewBox="0 0 24 24" fill="none"><path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 6L8 13H12L11 18L16 11H12L13 6Z" fill="currentColor"/></svg>`;
+      const ct=document.createElement("div");ct.className="ai-content";
+      cw.insertBefore(row,node);
+      node.parentNode&&node.parentNode.removeChild(node);
+      ct.appendChild(node);row.appendChild(av);row.appendChild(ct);
+      node.style.cssText="";
+    }
+    new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)wrap(n);}))).observe(cw,{childList:true});
+  })();
+</script>
+</body>
+</html>
