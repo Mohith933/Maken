@@ -104,6 +104,9 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentChatId = null;
   let activeChatId  = null;
 
+  // === OUTPUT MEMORY — tracks last built output for iteration ===
+  let lastOutput = { type: null, code: "", label: "", intent: null };
+
   // === FILE HANDLING ===
   let selectedFile = null;
   const previewContainer = document.getElementById("previewContainer");
@@ -442,12 +445,36 @@ document.addEventListener("DOMContentLoaded", function () {
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
   function codeBlock(lang, code, extra = "") {
+    // Store in output memory for iteration
+    const isHTML = lang === "html";
+    const isPy   = lang === "python";
+    const isJS   = lang === "javascript";
+    const isCss  = lang === "css";
+
+    lastOutput.code   = code;
+    lastOutput.type   = isHTML ? "html" : isPy ? "python" : isJS ? "js" : isCss ? "css" : "text";
+    lastOutput.intent = lang;
+
+    // Build extension and filename
+    const ext = isHTML ? "html" : isPy ? "py" : isJS ? "js" : isCss ? "css" : "txt";
+    const filename = "maken-output." + ext;
+
+    // Download button — creates real file
+    const dlBtn = '<button class="mk-btn dlBtn" data-filename="' + filename + '">↓ Download</button>';
+
+    // Preview button — only for HTML
+    const previewBtn = isHTML
+      ? '<button class="mk-btn previewBtn">▶ Preview</button>'
+      : "";
+
     return `
-      <div class="mk-output-block">
+      <div class="mk-output-block" data-lang="${lang}">
         <div class="mk-output-bar">
           <span class="mk-lang">${lang}</span>
           <div class="mk-bar-actions">
             ${extra}
+            ${previewBtn}
+            ${dlBtn}
             <button class="copyBtn mk-btn">Copy</button>
           </div>
         </div>
@@ -506,12 +533,125 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ============================================================
+  //  ITERATION ENGINE — modifies last output based on user request
+  // ============================================================
+  function buildIterationResponse(msg, m) {
+    let updatedCode = lastOutput.code;
+    const type = lastOutput.type;
+    let changeLog = [];
+
+    // ── Dark theme ──
+    if (m.includes("dark")) {
+      updatedCode = updatedCode
+        .replace(/#f5f5f3|#ffffff|#fff|#f8f8f8|#fafafa|#eeeeee/gi, "#0b0b0b")
+        .replace(/color:\s*#111|color:\s*#000|color:\s*black/gi, "color: #e8eaf0")
+        .replace(/background:\s*white|background:\s*#fff/gi, "background: #0b0b0b");
+      if (updatedCode === lastOutput.code) {
+        // inject dark style if no replacements matched
+        updatedCode = updatedCode.replace("</style>",
+          "body{background:#0b0b0b!important;color:#e8eaf0!important}</style>");
+      }
+      changeLog.push("dark background + light text");
+    }
+
+    // ── Light theme ──
+    if (m.includes("light theme") || m.includes("make it light")) {
+      updatedCode = updatedCode
+        .replace(/#0b0b0b|#111111|#111/gi, "#f5f5f3")
+        .replace(/color:\s*#e8eaf0|color:\s*#eee/gi, "color: #111");
+      changeLog.push("light background + dark text");
+    }
+
+    // ── Responsive ──
+    if (m.includes("responsive")) {
+      const responsiveCSS = "\n@media(max-width:600px){body{padding:12px!important}h1{font-size:clamp(1.4rem,6vw,2.5rem)!important}.hero{padding:30px 16px!important}nav{display:none!important}}";
+      updatedCode = updatedCode.replace("</style>", responsiveCSS + "</style>");
+      changeLog.push("mobile responsive breakpoints");
+    }
+
+    // ── Animation ──
+    if (m.includes("animation") || m.includes("animate")) {
+      const animCSS = "\n@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}body *{animation:fadeUp 0.5s ease both}";
+      updatedCode = updatedCode.replace("</style>", animCSS + "</style>");
+      changeLog.push("fade-up animations on all elements");
+    }
+
+    // ── Font size ──
+    if (m.includes("bigger") || m.includes("larger")) {
+      updatedCode = updatedCode.replace(/font-size:\s*[\d.]+rem/g, (match) => {
+        const val = parseFloat(match.match(/[\d.]+/)[0]);
+        return "font-size:" + (val * 1.2).toFixed(2) + "rem";
+      });
+      changeLog.push("increased font sizes by 20%");
+    }
+
+    // ── Center content ──
+    if (m.includes("center")) {
+      updatedCode = updatedCode.replace("</style>",
+        "\nbody{text-align:center!important}.hero,.section{align-items:center!important}</style>");
+      changeLog.push("centered all content");
+    }
+
+    // ── Remove nav ──
+    if (m.includes("remove nav") || m.includes("no nav") || m.includes("remove header")) {
+      updatedCode = updatedCode.replace(/<header[\s\S]*?<\/header>/i, "");
+      updatedCode = updatedCode.replace(/<nav[\s\S]*?<\/nav>/i, "");
+      changeLog.push("removed navigation");
+    }
+
+    // ── Color change ──
+    const colorMatch = m.match(/(?:color|accent|button|cta)\s+(?:to\s+)?([a-z]+|#[0-9a-f]{3,6})/i);
+    if (colorMatch) {
+      const newColor = colorMatch[1];
+      updatedCode = updatedCode.replace(/--accent:\s*[^;]+;/, "--accent: " + newColor + ";");
+      updatedCode = updatedCode.replace(/background:\s*#4f8fff/g, "background:" + newColor);
+      changeLog.push("accent color → " + newColor);
+    }
+
+    // Save updated to memory
+    lastOutput.code = updatedCode;
+
+    const log = changeLog.length > 0
+      ? changeLog.map(c => '<div class="mk-step"><div class="mk-step-num">✓</div><div class="mk-step-body"><div class="mk-step-desc">' + c + '</div></div></div>').join("")
+      : '<div class="mk-step"><div class="mk-step-num">✓</div><div class="mk-step-body"><div class="mk-step-desc">Applied your changes</div></div></div>';
+
+    return `
+      <div class="mk-header">
+        <span class="mk-status done">Updated</span>
+        <span class="mk-label">${lastOutput.intent} · iteration</span>
+      </div>
+      <p class="mk-lead">Done — here's what changed:</p>
+      <div class="mk-steps">${log}</div>
+      ${codeBlock(lastOutput.intent, updatedCode)}
+      ${tagRow(["Modified from last output","Ready to use","Download or preview"])}
+      ${nextActions(["Make it responsive","Add animations","Change the color to blue","Preview this"])}`;
+  }
+
+  // ============================================================
   //  RESPONSE BUILDER — workspace-style, output-first
   // ============================================================
   async function generateAIResponse(userMessage, selectedFile) {
     const msg = (userMessage || "").trim();
     const m   = msg.toLowerCase();
     const intent = detectIntent(m);
+
+    // ── OUTPUT ITERATION — user is modifying last output ──────
+    const isIteration = lastOutput.code && (
+      m.includes("make it") || m.includes("change it") ||
+      m.includes("add ") || m.includes("remove ") ||
+      m.includes("update ") || m.includes("modify") ||
+      m.includes("dark") || m.includes("light theme") ||
+      m.includes("responsive") || m.includes("animation") ||
+      m.includes("color") || m.includes("font") ||
+      m.includes("bigger") || m.includes("smaller") ||
+      m.includes("center") || m.includes("fix it") ||
+      m.includes("improve") || m.includes("refactor") ||
+      m.includes("rename") || m.includes("translate")
+    );
+
+    if (isIteration && lastOutput.code) {
+      return buildIterationResponse(msg, m);
+    }
 
     // ── FILE UPLOAD ──────────────────────────────────────────
     if (selectedFile) {
@@ -808,49 +948,131 @@ document.addEventListener("DOMContentLoaded", function () {
       ])}`;
   }
 
-  // === CODE BLOCK ACTIONS (both old .code-block-container and new .mk-output-block) ===
+  // === OUTPUT BLOCK ACTIONS — Copy · Download · Preview ===
   document.addEventListener("click", (e) => {
 
-    // ── New workspace mk-output-block copy ──
-    if (e.target.classList.contains("copyBtn") || e.target.classList.contains("mk-btn")) {
-      const block = e.target.closest(".mk-output-block");
-      if (block) {
-        const codeEl = block.querySelector(".mk-code");
-        if (codeEl) {
-          navigator.clipboard.writeText(codeEl.textContent.trim()).then(() => {
-            const orig = e.target.textContent;
-            e.target.textContent = "Copied ✓";
-            e.target.classList.add("copied");
-            setTimeout(() => {
-              e.target.textContent = orig;
-              e.target.classList.remove("copied");
-            }, 2000);
-          });
-        }
-        return;
-      }
+    const block = e.target.closest(".mk-output-block");
+
+    // ── COPY ──
+    if (e.target.classList.contains("copyBtn") && block) {
+      const codeEl = block.querySelector(".mk-code");
+      if (!codeEl) return;
+      navigator.clipboard.writeText(codeEl.textContent.trim()).then(() => {
+        const orig = e.target.textContent;
+        e.target.textContent = "Copied ✓";
+        e.target.classList.add("copied");
+        setTimeout(() => { e.target.textContent = orig; e.target.classList.remove("copied"); }, 2000);
+      });
+      return;
     }
 
-    // ── Old code-block-container ──
-    const block = e.target.closest(".code-block-container");
-    if (!block) return;
-    const textEl = block.querySelector(".code-content");
-    if (!textEl) return;
+    // ── DOWNLOAD — real file ──
+    if (e.target.classList.contains("dlBtn") && block) {
+      const codeEl  = block.querySelector(".mk-code");
+      const rawCode = codeEl ? codeEl.textContent.trim() : "";
+      const filename = e.target.dataset.filename || "maken-output.txt";
+      const mime = filename.endsWith(".html") ? "text/html"
+                 : filename.endsWith(".py")   ? "text/x-python"
+                 : filename.endsWith(".js")   ? "text/javascript"
+                 : filename.endsWith(".css")  ? "text/css"
+                 : "text/plain";
 
+      const blob = new Blob([rawCode], { type: mime });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      const orig = e.target.textContent;
+      e.target.textContent = "Downloaded ✓";
+      setTimeout(() => { e.target.textContent = orig; }, 2000);
+      return;
+    }
+
+    // ── LIVE PREVIEW — HTML only ──
+    if (e.target.classList.contains("previewBtn") && block) {
+      const codeEl  = block.querySelector(".mk-code");
+      const rawHTML = codeEl ? codeEl.textContent.trim() : "";
+      openLivePreview(rawHTML);
+      return;
+    }
+
+    // ── Legacy code-block-container copy (backwards compat) ──
+    const oldBlock = e.target.closest(".code-block-container");
+    if (!oldBlock) return;
+    const textEl = oldBlock.querySelector(".code-content");
+    if (!textEl) return;
     if (e.target.classList.contains("copyBtn")) {
       navigator.clipboard.writeText(textEl.textContent.trim()).then(() => {
         e.target.textContent = "Copied ✓";
         setTimeout(() => e.target.textContent = "Copy", 2000);
       });
     }
-
     if (e.target.classList.contains("sendBtn")) {
       const fullText = textEl.innerText.trim();
       const subjectMatch = fullText.match(/Subject:\s*(.*)/i);
       const subject = subjectMatch ? subjectMatch[1] : "Maken Draft";
-      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullText)}`;
+      window.location.href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(fullText);
     }
   });
+
+  // === LIVE PREVIEW MODAL ===
+  function openLivePreview(html) {
+    // Remove existing preview
+    document.querySelector(".mk-preview-modal")?.remove();
+
+    const modal = document.createElement("div");
+    modal.className = "mk-preview-modal";
+    modal.innerHTML = `
+      <div class="mk-preview-bar">
+        <span class="mk-preview-title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" style="vertical-align:middle;margin-right:5px">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+          Live Preview
+        </span>
+        <div class="mk-preview-actions">
+          <button class="mk-preview-dl mk-btn">↓ Download</button>
+          <button class="mk-preview-close mk-btn">✕ Close</button>
+        </div>
+      </div>
+      <iframe class="mk-preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Write HTML into iframe
+    const iframe = modal.querySelector(".mk-preview-frame");
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // Animate in
+    requestAnimationFrame(() => modal.classList.add("open"));
+
+    // Close
+    modal.querySelector(".mk-preview-close").onclick = () => {
+      modal.classList.remove("open");
+      setTimeout(() => modal.remove(), 260);
+    };
+
+    // Download from preview
+    modal.querySelector(".mk-preview-dl").onclick = () => {
+      const blob = new Blob([html], { type: "text/html" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = "maken-preview.html"; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // ESC to close
+    const escHandler = (e) => { if (e.key === "Escape") { modal.querySelector(".mk-preview-close").click(); document.removeEventListener("keydown", escHandler); } };
+    document.addEventListener("keydown", escHandler);
+  }
 
   // === VOICE READ ===
   document.addEventListener("click", function (e) {
