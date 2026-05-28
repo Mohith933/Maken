@@ -1,110 +1,191 @@
 document.addEventListener("DOMContentLoaded", function () {
 
-  // === ELEMENT REFERENCES ===
-  const hero        = document.getElementById("heroSection");
-  const chatWindow  = document.querySelector('.chat-window');
-  const sendBtn     = document.getElementById("sendBtn");
-  const chatbox     = document.getElementById("userinput");
-  const inputBox    = document.getElementById("inputBox");
-  const footer      = document.getElementById("footer");
-  const plusBtn     = document.getElementById("plusBtn");
+  // ============================================================
+  //  ELEMENT REFS
+  // ============================================================
+  const hero           = document.getElementById("heroSection");
+  const chatWindow     = document.querySelector('.chat-window');
+  const sendBtn        = document.getElementById("sendBtn");
+  const chatbox        = document.getElementById("userinput");
+  const inputBox       = document.getElementById("inputBox");
+  const footer         = document.getElementById("footer");
+  const plusBtn        = document.getElementById("plusBtn");
   const uploadDropdown = document.getElementById("uploadDropdown");
   const screenshotBtn  = document.getElementById("screenshotBtn");
   const historyList    = document.getElementById("historyList");
   const menuToggle     = document.getElementById("menuToggle");
   const sidebar        = document.getElementById("sidebar");
-  const closeSidebarBtn = document.getElementById("closeSidebarBtn");
-  const sidebarOverlay  = document.getElementById("sidebarOverlay");
-  const voiceBtn        = document.querySelector('.voice-icon');
+  const closeSidebarBtn= document.getElementById("closeSidebarBtn");
+  const sidebarOverlay = document.getElementById("sidebarOverlay");
+  const voiceIconEl    = document.getElementById("voiceIconEl");
 
+  // V3 refs
+  const voiceModal     = document.getElementById("voiceModal");
+  const voiceOrb       = document.getElementById("voiceOrb");
+  const voiceWave      = document.getElementById("voiceWave");
+  const voiceStatus    = document.getElementById("voiceStatus");
+  const voiceTranscript= document.getElementById("voiceTranscript");
+  const voiceSendBtn   = document.getElementById("voiceSendBtn");
+  const voiceCloseBtn  = document.getElementById("voiceCloseBtn");
+  const imageGenBtn    = document.getElementById("imageGenBtn");
 
-
-  // === SIDEBAR TOGGLE ===
+  // ============================================================
+  //  SIDEBAR
+  // ============================================================
   menuToggle.addEventListener("click", () => {
     sidebar.classList.add("active");
     sidebarOverlay.classList.add("active");
   });
-
   function closeSidebar() {
     sidebar.classList.remove("active");
     sidebarOverlay.classList.remove("active");
   }
-
   closeSidebarBtn.addEventListener("click", closeSidebar);
   sidebarOverlay.addEventListener("click", closeSidebar);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { closeSidebar(); closeVoiceModal(); } });
+  document.getElementById("editLogoBtn").addEventListener("click", () => { window.location.href = "dashboard.html"; });
 
-  // Close sidebar on ESC
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape") closeSidebar();
-  });
-
-  // === EDIT / NEW CHAT BTN ===
-  document.getElementById("editLogoBtn").addEventListener("click", () => {
-    window.location.href = "dashboard.html";
-  });
-
-  // === SUGGESTION CHIPS ===
+  // ============================================================
+  //  SUGGESTION CHIPS
+  // ============================================================
   function fillAndSend(text) {
     chatbox.value = text;
     autoResizeTextarea();
     sendMessage();
   }
-
-  document.getElementById("codeBtn").addEventListener("click", () => fillAndSend("Fix my code error"));
+  document.getElementById("codeBtn").addEventListener("click",    () => fillAndSend("Fix my code error"));
   document.getElementById("websiteBtn").addEventListener("click", () => fillAndSend("Build a website"));
-  document.getElementById("writeBtn").addEventListener("click", () => fillAndSend("Write a message"));
+  document.getElementById("writeBtn").addEventListener("click",   () => fillAndSend("Write a message"));
+  if (imageGenBtn) imageGenBtn.addEventListener("click", () => fillAndSend("Generate an image of a futuristic city at night"));
 
-  // === AUTO RESIZE TEXTAREA ===
+  // ============================================================
+  //  TEXTAREA AUTO-RESIZE
+  // ============================================================
   function autoResizeTextarea() {
     chatbox.style.height = "auto";
     chatbox.style.height = Math.min(chatbox.scrollHeight, 180) + "px";
   }
-
   chatbox.addEventListener("input", autoResizeTextarea);
 
-  // === VOICE RECOGNITION ===
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
+  // ============================================================
+  //  V3: LIVE VOICE MODAL
+  // ============================================================
+  let recognition = null;
+  let voiceListening = false;
+  let voiceResult = "";
 
-    let isListening = false;
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    voiceBtn.addEventListener('click', () => {
-      if (isListening) {
-        recognition.stop();
-        return;
-      }
-      recognition.start();
-      isListening = true;
-      voiceBtn.classList.add("active");
-    });
+  function openVoiceModal() {
+    voiceModal.classList.add("active");
+    voiceResult = "";
+    voiceTranscript.textContent = "Your words will appear here…";
+    voiceStatus.textContent = "Tap the mic to speak";
+    voiceWave.classList.remove("active");
+    voiceOrb.classList.remove("listening");
+  }
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      chatbox.value += (chatbox.value ? ' ' : '') + transcript;
-      autoResizeTextarea();
+  function closeVoiceModal() {
+    voiceModal.classList.remove("active");
+    stopVoiceListening();
+  }
+
+  function startVoiceListening() {
+    if (!SpeechRec) {
+      voiceStatus.textContent = "Not supported in this browser";
+      return;
+    }
+    if (voiceListening) { stopVoiceListening(); return; }
+
+    recognition = new SpeechRec();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => {
+      voiceListening = true;
+      voiceOrb.classList.add("listening");
+      voiceWave.classList.add("active");
+      voiceStatus.textContent = "Listening…";
     };
 
-    recognition.onend = () => {
-      isListening = false;
-      voiceBtn.classList.remove("active");
+    recognition.onresult = (e) => {
+      let interim = "";
+      let final = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t;
+        else interim += t;
+      }
+      if (final) voiceResult += final + " ";
+      voiceTranscript.textContent = (voiceResult + interim).trim() || "Your words will appear here…";
     };
 
     recognition.onerror = () => {
-      isListening = false;
-      voiceBtn.classList.remove("active");
+      voiceStatus.textContent = "Couldn't hear — try again";
+      voiceOrb.classList.remove("listening");
+      voiceWave.classList.remove("active");
+      voiceListening = false;
     };
+
+    recognition.onend = () => {
+      voiceOrb.classList.remove("listening");
+      voiceWave.classList.remove("active");
+      voiceListening = false;
+      if (voiceResult.trim()) {
+        voiceStatus.textContent = "Got it — send or retry";
+      } else {
+        voiceStatus.textContent = "Tap the mic to speak";
+      }
+    };
+
+    recognition.start();
   }
 
-  // === LOCAL STORAGE ===
+  function stopVoiceListening() {
+    if (recognition) { try { recognition.stop(); } catch(e) {} }
+    voiceListening = false;
+    voiceOrb.classList.remove("listening");
+    voiceWave.classList.remove("active");
+    if (voiceIconEl) voiceIconEl.classList.remove("live-active");
+  }
+
+  // Open voice modal when mic icon clicked in input bar
+  if (voiceIconEl) {
+    voiceIconEl.addEventListener("click", () => {
+      openVoiceModal();
+      setTimeout(() => startVoiceListening(), 300);
+    });
+  }
+
+  // Orb tap toggles listening
+  voiceOrb.addEventListener("click", () => {
+    if (voiceListening) stopVoiceListening();
+    else startVoiceListening();
+  });
+
+  // Send voice result
+  voiceSendBtn.addEventListener("click", () => {
+    const text = voiceResult.trim() || voiceTranscript.textContent.trim();
+    if (text && text !== "Your words will appear here…") {
+      closeVoiceModal();
+      chatbox.value = text;
+      autoResizeTextarea();
+      sendMessage();
+    }
+  });
+
+  voiceCloseBtn.addEventListener("click", closeVoiceModal);
+
+  // ============================================================
+  //  LOCAL STORAGE
+  // ============================================================
   let conversations = JSON.parse(localStorage.getItem("makenChats")) || [];
   let currentChatId = null;
-  let activeChatId  = null;
 
-  // === FILE HANDLING ===
+  // ============================================================
+  //  FILE HANDLING
+  // ============================================================
   let selectedFile = null;
   const previewContainer = document.getElementById("previewContainer");
 
@@ -112,17 +193,14 @@ document.addEventListener("DOMContentLoaded", function () {
     input.addEventListener("change", (event) => {
       const file = event.target.files[0];
       if (!file) return;
-
       selectedFile = file;
       previewContainer.innerHTML = "";
       previewContainer.style.display = "flex";
 
       const wrapper = document.createElement("div");
       wrapper.className = "preview-item";
-
       const type = file.type.split("/")[0];
       let element;
-
       if (type === "image") {
         element = document.createElement("img");
         element.src = URL.createObjectURL(file);
@@ -131,7 +209,6 @@ document.addEventListener("DOMContentLoaded", function () {
         element.className = "file-preview";
         element.textContent = "📄 " + file.name;
       }
-
       const removeBtn = document.createElement("button");
       removeBtn.textContent = "✕";
       removeBtn.className = "remove-btn";
@@ -141,7 +218,6 @@ document.addEventListener("DOMContentLoaded", function () {
         previewContainer.style.display = "none";
         input.value = "";
       };
-
       wrapper.appendChild(element);
       wrapper.appendChild(removeBtn);
       previewContainer.appendChild(wrapper);
@@ -156,118 +232,116 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // === SEND MESSAGE ===
-  sendBtn.addEventListener('click', sendMessage);
-  chatbox.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+  // ============================================================
+  //  SEND MESSAGE
+  // ============================================================
+  sendBtn.addEventListener("click", sendMessage);
+  chatbox.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
   async function sendMessage() {
     const userMessage = chatbox.value.trim();
     if (!userMessage && !selectedFile) return;
 
-    if (!currentChatId) {
-      startNewConversation(userMessage || "Attachment");
-    }
+    if (!currentChatId) startNewConversation(userMessage || "Attachment");
 
     const fileForAI = selectedFile;
 
-    // Handle file upload display
     if (selectedFile) {
       const base64 = await fileToBase64(selectedFile);
       displayFileMessage(selectedFile);
-      saveMessage(
-        currentChatId, "user", "",
-        base64,
-        selectedFile.type.startsWith("image") ? "image" : "file",
-        selectedFile.name
-      );
+      saveMessage(currentChatId, "user", "", base64, selectedFile.type.startsWith("image") ? "image" : "file", selectedFile.name);
       selectedFile = null;
       previewContainer.innerHTML = "";
       previewContainer.style.display = "none";
     }
 
-    // Handle text
     if (userMessage) {
       addMessageToChat(userMessage, false);
       saveMessage(currentChatId, "user", userMessage);
     }
 
-    // Clear input
     chatbox.value = "";
     chatbox.style.height = "auto";
     uploadDropdown.style.display = "none";
-
-    // Transition hero → chat
     transitionToChat();
 
-    // AI loader
+    // loader
     const aiMessage = document.createElement("div");
     aiMessage.classList.add("message", "ai-message", "loading");
     aiMessage.innerHTML = buildLoader();
     chatWindow.appendChild(aiMessage);
     scrollToBottom();
 
-    // Generate response
+    const delay = detectImageIntent(userMessage) ? 3200 : 900;
+
     setTimeout(async () => {
       const response = await generateAIResponse(userMessage, fileForAI);
       aiMessage.classList.remove("loading");
       aiMessage.innerHTML = "";
       typeText(aiMessage, response);
       saveMessage(currentChatId, "ai", response);
-    }, 900);
+    }, delay);
   }
 
+  // ============================================================
+  //  IMAGE INTENT DETECTION
+  // ============================================================
+  function detectImageIntent(msg) {
+    if (!msg) return false;
+    const m = msg.toLowerCase();
+    return ["generate image","create image","make image","draw","generate a","create a picture",
+      "show me","illustrate","visualize","image of","picture of","photo of","artwork","painting",
+      "render","design image","generate art"].some(k => m.includes(k));
+  }
+
+  // ============================================================
+  //  LOADER
+  // ============================================================
   function buildLoader() {
-    return `
-      <div class="gemini-loader">
-        <div class="ai-icon-wrapper">
-          <svg viewBox="0 0 24 24" class="ai-pulse-icon" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="#4f8fff" stroke-width="1.5" stroke-linejoin="round"/>
-            <path d="M13 6L8 13H12L11 18L16 11H12L13 6Z" fill="#4f8fff"/>
-          </svg>
-        </div>
-        <div class="shimmer-container">
-          <div class="shimmer-line medium"></div>
-          <div class="shimmer-line"></div>
-          <div class="shimmer-line short"></div>
-        </div>
+    return `<div class="gemini-loader">
+      <div class="ai-icon-wrapper">
+        <svg viewBox="0 0 24 24" class="ai-pulse-icon" fill="none">
+          <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M13 6L8 13H12L11 18L16 11H12L13 6Z" fill="white"/>
+        </svg>
       </div>
-    `;
+      <div class="shimmer-container">
+        <div class="shimmer-line medium"></div>
+        <div class="shimmer-line"></div>
+        <div class="shimmer-line short"></div>
+      </div>
+    </div>`;
   }
 
-  // === TRANSITION HERO → CHAT ===
+  // ============================================================
+  //  TRANSITION HERO → CHAT
+  // ============================================================
   function transitionToChat() {
     if (hero.style.display === "none") return;
-
     hero.style.transition = "opacity 0.3s ease, transform 0.3s ease";
     hero.style.opacity = "0";
     hero.style.transform = "translateY(-10px)";
-
     setTimeout(() => {
       hero.style.display = "none";
       chatWindow.style.display = "flex";
     }, 280);
-
-    footer.innerHTML = "Fast · No login · Runs locally";
+    footer.innerHTML = "Maken V3 · Build space · Fast · Private";
   }
 
-  // === DISPLAY FILE MESSAGE ===
+  // ============================================================
+  //  DISPLAY FILE MESSAGE
+  // ============================================================
   function displayFileMessage(file) {
     const type = file.type.split("/")[0];
     const messageDiv = document.createElement("div");
-
     if (type === "image") {
       messageDiv.classList.add("message", "user-image");
       const img = document.createElement("img");
       const imgURL = URL.createObjectURL(file);
       img.src = imgURL;
-      img.style.maxWidth = "200px";
-      img.style.borderRadius = "12px";
-      img.style.cursor = "pointer";
+      img.style.cssText = "max-width:200px;border-radius:12px;cursor:pointer;";
       img.onclick = () => openImageViewer(imgURL);
       messageDiv.appendChild(img);
     } else {
@@ -276,35 +350,32 @@ document.addEventListener("DOMContentLoaded", function () {
       link.href = URL.createObjectURL(file);
       link.download = file.name;
       link.textContent = "📄 " + file.name;
-      link.style.color = "inherit";
-      link.style.textDecoration = "none";
+      link.style.cssText = "color:inherit;text-decoration:none;";
       messageDiv.appendChild(link);
     }
-
     chatWindow.appendChild(messageDiv);
     scrollToBottom();
   }
 
-  // === IMAGE VIEWER ===
+  // ============================================================
+  //  IMAGE VIEWER
+  // ============================================================
   function openImageViewer(src) {
     const viewer = document.createElement("div");
     viewer.classList.add("image-viewer");
     viewer.innerHTML = `<span class="close-btn">✕</span><img src="${src}" class="full-image"/>`;
     document.body.appendChild(viewer);
-
     viewer.querySelector(".close-btn").onclick = () => viewer.remove();
     viewer.onclick = (e) => { if (e.target === viewer) viewer.remove(); };
   }
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") document.querySelector(".image-viewer")?.remove();
-  });
-
-  // === CONVERSATION MANAGEMENT ===
+  // ============================================================
+  //  CONVERSATION MANAGEMENT
+  // ============================================================
   function startNewConversation(firstMessage) {
     chatWindow.innerHTML = "";
     const chatId = Date.now();
-    const title = firstMessage.length > 28 ? firstMessage.slice(0, 28) + "…" : firstMessage;
+    const title = firstMessage.length > 30 ? firstMessage.slice(0, 30) + "…" : firstMessage;
     conversations.unshift({ id: chatId, title, messages: [] });
     currentChatId = chatId;
     updateHistorySidebar();
@@ -329,29 +400,17 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateHistorySidebar() {
     if (!historyList) return;
     historyList.innerHTML = "";
-
     conversations.forEach(chat => {
       const item = document.createElement("div");
       item.className = "history-item";
       if (chat.id === currentChatId) item.classList.add("active");
-
       const titleSpan = document.createElement("span");
       titleSpan.textContent = chat.title;
-      titleSpan.addEventListener("click", () => {
-        activeChatId = chat.id;
-        loadConversation(chat.id);
-        updateHistorySidebar();
-        closeSidebar();
-      });
-
+      titleSpan.addEventListener("click", () => { loadConversation(chat.id); closeSidebar(); });
       const deleteBtn = document.createElement("button");
       deleteBtn.textContent = "✕";
       deleteBtn.className = "delete-btn";
-      deleteBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteConversation(chat.id);
-      });
-
+      deleteBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteConversation(chat.id); });
       item.appendChild(titleSpan);
       item.appendChild(deleteBtn);
       historyList.appendChild(item);
@@ -359,14 +418,11 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function deleteConversation(chatId) {
-    if (!confirm("Delete this conversation?")) return;
+    if (!confirm("Delete this chat?")) return;
     conversations = conversations.filter(c => c.id !== chatId);
     saveToLocal();
     updateHistorySidebar();
-    if (currentChatId === chatId) {
-      currentChatId = null;
-      window.location.href = "dashboard.html";
-    }
+    if (currentChatId === chatId) window.location.href = "dashboard.html";
   }
 
   function loadConversation(chatId) {
@@ -376,57 +432,41 @@ document.addEventListener("DOMContentLoaded", function () {
     chatWindow.innerHTML = "";
     hero.style.display = "none";
     chatWindow.style.display = "flex";
-    footer.innerHTML = "Fast · No login · Runs locally";
-
     chat.messages.forEach(msg => {
       if (msg.type === "image") {
-        const messageDiv = document.createElement("div");
-        messageDiv.classList.add("message", msg.sender === "ai" ? "ai-message" : "user-image");
+        const div = document.createElement("div");
+        div.classList.add("message", msg.sender === "ai" ? "ai-message" : "user-image");
         const img = document.createElement("img");
         img.src = msg.content;
-        img.style.maxWidth = "200px";
-        img.style.borderRadius = "12px";
-        img.style.cursor = "pointer";
+        img.style.cssText = "max-width:200px;border-radius:12px;cursor:pointer;";
         img.onclick = () => openImageViewer(msg.content);
-        messageDiv.appendChild(img);
-        chatWindow.appendChild(messageDiv);
+        div.appendChild(img);
+        chatWindow.appendChild(div);
       } else if (msg.type === "file") {
-        const messageDiv = document.createElement("div");
-        messageDiv.classList.add("message", msg.sender === "ai" ? "ai-message" : "user-message");
-        const link = document.createElement("a");
-        link.href = msg.content;
-        link.download = msg.name;
-        link.textContent = "📄 " + msg.name;
-        link.style.color = "inherit";
-        link.style.textDecoration = "none";
-        messageDiv.appendChild(link);
-        chatWindow.appendChild(messageDiv);
+        const div = document.createElement("div");
+        div.classList.add("message", "user-message");
+        div.textContent = "📄 " + msg.name;
+        chatWindow.appendChild(div);
       } else {
         addMessageToChat(msg.text, msg.sender === "ai");
       }
     });
-
     scrollToBottom();
-    activeChatId = chatId;
     updateHistorySidebar();
   }
 
-  function saveToLocal() {
-    localStorage.setItem("makenChats", JSON.stringify(conversations));
-  }
+  function saveToLocal() { localStorage.setItem("makenChats", JSON.stringify(conversations)); }
 
   function scrollToBottom() {
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    });
+    requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }));
   }
 
   // ============================================================
-  //  TYPE EFFECT — streams HTML char by char, smooth
+  //  TYPE EFFECT
   // ============================================================
   function typeText(element, htmlContent) {
     let i = 0;
-    const step = 6;
+    const step = 5;
     function type() {
       i += step;
       element.innerHTML = htmlContent.slice(0, i);
@@ -441,22 +481,20 @@ document.addEventListener("DOMContentLoaded", function () {
   // ============================================================
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  function codeBlock(lang, code, extra = "") {
-    return `
-      <div class="mk-output-block">
-        <div class="mk-output-bar">
-          <span class="mk-lang">${lang}</span>
-          <div class="mk-bar-actions">
-            ${extra}
-            <button class="copyBtn mk-btn">Copy</button>
-          </div>
+  function codeBlock(lang, code) {
+    return `<div class="mk-output-block">
+      <div class="mk-output-bar">
+        <span class="mk-lang">${lang}</span>
+        <div class="mk-bar-actions">
+          <button class="mk-btn copyBtn">Copy</button>
         </div>
-        <pre class="mk-code">${code}</pre>
-      </div>`;
+      </div>
+      <pre class="mk-code">${code}</pre>
+    </div>`;
   }
 
   function stepList(steps) {
-    return `<div class="mk-steps">${steps.map((s,i)=>`
+    return `<div class="mk-steps">${steps.map((s,i) => `
       <div class="mk-step">
         <div class="mk-step-num">${i+1}</div>
         <div class="mk-step-body">
@@ -467,34 +505,141 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function tagRow(tags) {
-    return `<div class="mk-tags">${tags.map(t=>`<span class="mk-tag">${t}</span>`).join("")}</div>`;
+    return `<div class="mk-tags">${tags.map(t => `<span class="mk-tag">${t}</span>`).join("")}</div>`;
   }
 
   function nextActions(actions) {
     return `<div class="mk-next-label">Next — tell Maken to:</div>
-      <div class="mk-next-actions">${actions.map(a=>`
-        <button class="mk-next-btn" onclick="document.getElementById('userinput').value='${a.replace(/'/g,"\\'")}';document.getElementById('userinput').focus();">${a}</button>`
+      <div class="mk-next-actions">${actions.map(a =>
+        `<button class="mk-next-btn" onclick="document.getElementById('userinput').value='${a.replace(/'/g,"\\'")}';document.getElementById('userinput').focus();">${a}</button>`
       ).join("")}</div>`;
   }
 
   // ============================================================
-  //  INTENT DETECTION — multi-signal scoring
+  //  V3: IMAGE GENERATION (fake loading → real Unsplash image)
+  // ============================================================
+  function buildImageGenResponse(prompt) {
+    const m = prompt.toLowerCase();
+
+    // Pick a relevant Unsplash category based on prompt
+    const categories = [
+      { keys: ["city","urban","street","night","neon"], q: "futuristic+city+night" },
+      { keys: ["nature","forest","mountain","landscape","sunset"], q: "nature+landscape" },
+      { keys: ["space","galaxy","stars","cosmos","planet"], q: "galaxy+space+stars" },
+      { keys: ["ocean","sea","beach","water","wave"], q: "ocean+beach+waves" },
+      { keys: ["portrait","person","face","human","woman","man"], q: "portrait+photography" },
+      { keys: ["animal","cat","dog","bird","wolf","lion"], q: "wildlife+animal" },
+      { keys: ["food","cake","coffee","pizza","dessert"], q: "food+photography" },
+      { keys: ["car","vehicle","supercar","motorcycle"], q: "supercar+vehicle" },
+      { keys: ["abstract","art","pattern","color","gradient"], q: "abstract+art+colorful" },
+      { keys: ["building","architecture","interior","room"], q: "architecture+interior" },
+    ];
+
+    let query = "digital+art+creative";
+    for (const cat of categories) {
+      if (cat.keys.some(k => m.includes(k))) { query = cat.q; break; }
+    }
+
+    // Use multiple image sources for variety
+    const seed = Math.floor(Math.random() * 1000);
+    const w = 800, h = 450;
+    const imageUrl = `https://picsum.photos/seed/${seed}/${w}/${h}`;
+
+    const cleanPrompt = prompt.replace(/generate (an? )?image (of)?|create (an? )?image (of)?|draw|make (an? )?image/gi, "").trim() || prompt;
+
+    // Build the animated loading card that resolves to image
+    const loadId = "imggen_" + Date.now();
+
+    // Steps that animate during "generation"
+    return `<div class="mk-header">
+      <span class="mk-status working">Generating</span>
+      <span class="mk-label">Image · AI Render</span>
+    </div>
+    <p class="mk-lead" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;">
+      Prompt: <em style="color:var(--text)">"${cleanPrompt}"</em>
+    </p>
+    <div class="img-gen-card" id="${loadId}">
+      <div class="img-gen-loading">
+        <div class="img-gen-shimmer">
+          <div class="img-gen-shimmer-icon">🎨</div>
+          <div class="img-gen-shimmer-text">Rendering your image…</div>
+        </div>
+        <div class="img-gen-steps">
+          <span class="img-gen-step active" id="${loadId}_s1">◉ Analyzing prompt</span>
+          <span class="img-gen-step" id="${loadId}_s2">○ Composing scene</span>
+          <span class="img-gen-step" id="${loadId}_s3">○ Rendering details</span>
+          <span class="img-gen-step" id="${loadId}_s4">○ Finalizing</span>
+        </div>
+      </div>
+    </div>
+    ${nextActions(["Generate another variation","Make it dark and moody","Change the style to watercolor","Generate a portrait version"])}
+    <script>
+    (function(){
+      var steps = ["${loadId}_s1","${loadId}_s2","${loadId}_s3","${loadId}_s4"];
+      var delays = [0, 900, 1800, 2600];
+      steps.forEach(function(id, i){
+        setTimeout(function(){
+          var el = document.getElementById(id);
+          if(!el) return;
+          if(i > 0) {
+            var prev = document.getElementById(steps[i-1]);
+            if(prev){ prev.textContent = prev.textContent.replace("◉","✓"); prev.classList.remove("active"); prev.classList.add("done"); }
+          }
+          el.textContent = el.textContent.replace("○","◉");
+          el.classList.add("active");
+        }, delays[i]);
+      });
+      setTimeout(function(){
+        var last = document.getElementById(steps[steps.length-1]);
+        if(last){ last.textContent = last.textContent.replace("◉","✓"); last.classList.remove("active"); last.classList.add("done"); }
+        var card = document.getElementById("${loadId}");
+        if(!card) return;
+        var img = new Image();
+        img.onload = function(){
+          card.innerHTML =
+            '<div class="img-gen-result">' +
+              '<img src="${imageUrl}" alt="${cleanPrompt}" style="cursor:pointer" onclick="(function(s){var v=document.createElement(\'div\');v.className=\'image-viewer\';v.innerHTML=\'<span class=\\\"close-btn\\\" onclick=\\\"this.parentElement.remove()\\\">✕</span><img src=\\\"\'+s+\'\\\"/>\';document.body.appendChild(v);v.onclick=function(e){if(e.target===v)v.remove();};})(\\'${imageUrl}\\')"/>' +
+              '<div class="img-gen-toolbar">' +
+                '<span class="img-gen-meta">✓ Generated · 800×450</span>' +
+                '<div class="img-gen-actions">' +
+                  '<button class="img-gen-btn" onclick="window.open(\'${imageUrl}\',\'_blank\')">View full</button>' +
+                  '<button class="img-gen-btn" onclick="var a=document.createElement(\'a\');a.href=\'${imageUrl}\';a.download=\'maken-image.jpg\';a.click();">Download</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          var hdr = card.previousElementSibling && card.previousElementSibling.previousElementSibling;
+          var statusEl = document.querySelector("#${loadId}").closest(".ai-message, .ai-content")&&document.querySelector("#${loadId}").closest(".ai-message, .ai-content").querySelector(".mk-status");
+          var allStatus = document.querySelectorAll(".mk-status.working");
+          allStatus.forEach(function(s){s.textContent="✓ Generated";s.classList.remove("working");s.classList.add("done");});
+        };
+        img.onerror = function(){
+          card.innerHTML = '<p class="mk-note">⚠️ Image load failed — try a different prompt.</p>';
+        };
+        img.src = "${imageUrl}";
+      }, 3200);
+    })();
+    <\/script>`;
+  }
+
+  // ============================================================
+  //  INTENT DETECTION
   // ============================================================
   function detectIntent(msg) {
     const m = msg.toLowerCase();
+    if (detectImageIntent(msg)) return "imagegen";
     const map = {
-      python:  ["python","py","pandas","numpy","django","flask","fastapi"],
-      js:      ["javascript","js","node","react","vue","typescript","ts","express","next"],
-      css:     ["css","style","sass","tailwind","flexbox","grid","animation","responsive"],
+      python:  ["python","py","pandas","numpy","django","flask","fastapi","def ","print("],
+      js:      ["javascript","js","node","react","vue","typescript","ts","express","next","console.log"],
+      css:     ["css","style","sass","tailwind","flexbox","grid","animation","responsive","dark mode"],
       html:    ["html","webpage","landing page","homepage","portfolio","web page"],
-      website: ["website","site","build a web","build me a web","create a web","make a web","make a site"],
-      fix:     ["fix","debug","error","bug","not working","broken","issue","problem","crash","undefined","null"],
+      website: ["website","site","build a web","create a web","make a web","make a site","build me a web"],
+      fix:     ["fix","debug","error","bug","not working","broken","issue","problem","crash","undefined","null","typeerror"],
       explain: ["explain","what is","how does","how do","why does","tell me about","what does","difference between"],
       write:   ["write","draft","essay","blog","article","email","letter","message","post","content","copy"],
       plan:    ["plan","roadmap","steps","how to","guide","tutorial","learn","start","begin","checklist"],
       idea:    ["idea","suggest","recommend","brainstorm","inspiration","options","what should","help me choose"],
       math:    ["math","calculate","formula","equation","solve","sum","average","percentage","convert"],
-      hello:   ["hi","hello","hey","sup","what's up","hola","namaste","good morning","good evening"]
+      hello:   ["hi","hello","hey","sup","namaste","good morning","good evening","hola"]
     };
     let best = "default", maxScore = 0;
     for (const [name, keys] of Object.entries(map)) {
@@ -506,312 +651,253 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ============================================================
-  //  RESPONSE BUILDER — workspace-style, output-first
+  //  RESPONSE GENERATOR
   // ============================================================
   async function generateAIResponse(userMessage, selectedFile) {
     const msg = (userMessage || "").trim();
     const m   = msg.toLowerCase();
     const intent = detectIntent(m);
 
-    // ── FILE UPLOAD ──────────────────────────────────────────
+    // ── FILE ──────────────────────────────────────────────────
     if (selectedFile) {
       const isImg  = selectedFile.type.startsWith("image");
-      const isCode = selectedFile.name.match(/\.(js|py|ts|html|css|json|txt|md|csv)$/i);
-      const icon   = isImg ? "🖼️" : isCode ? "📄" : "📎";
+      const isCode = /\.(js|py|ts|html|css|json|txt|md|csv)$/i.test(selectedFile.name);
       const size   = (selectedFile.size / 1024).toFixed(1) + " KB";
-
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Received</span>
-          <span class="mk-label">${icon} ${selectedFile.name}</span>
-        </div>
-        <div class="mk-file-card">
-          <div class="mk-file-row"><span class="mk-file-key">Name</span><span class="mk-file-val">${selectedFile.name}</span></div>
-          <div class="mk-file-row"><span class="mk-file-key">Size</span><span class="mk-file-val">${size}</span></div>
-          <div class="mk-file-row"><span class="mk-file-key">Type</span><span class="mk-file-val">${selectedFile.type || "unknown"}</span></div>
-        </div>
-        ${nextActions(
-          isImg
-            ? ["Describe what's in this image","Extract text from this image","Turn this into a UI component","Suggest improvements"]
-            : isCode
-            ? ["Review this code for bugs","Add comments to this code","Explain what this code does","Refactor this code"]
-            : ["Summarize this file","Extract key points","Convert this to another format","Analyze the content"]
-        )}`;
+      return `<div class="mk-header">
+        <span class="mk-status done">Received</span>
+        <span class="mk-label">${isImg?"🖼️ Image":isCode?"📄 Code file":"📎 File"} · ${selectedFile.name}</span>
+      </div>
+      <div class="mk-file-card">
+        <div class="mk-file-row"><span class="mk-file-key">Name</span><span class="mk-file-val">${selectedFile.name}</span></div>
+        <div class="mk-file-row"><span class="mk-file-key">Size</span><span class="mk-file-val">${size}</span></div>
+        <div class="mk-file-row"><span class="mk-file-key">Type</span><span class="mk-file-val">${selectedFile.type||"unknown"}</span></div>
+      </div>
+      ${nextActions(isImg
+        ? ["Describe what's in this image","Turn this into a UI component","Suggest design improvements","Extract text from this image"]
+        : isCode
+        ? ["Review this code for bugs","Add comments to this code","Explain what this code does","Refactor and clean this up"]
+        : ["Summarize this file","Extract key points","Convert to another format","Analyze the content"]
+      )}`;
     }
 
-    // ── GREETING ─────────────────────────────────────────────
+    // ── IMAGE GENERATION ──────────────────────────────────────
+    if (intent === "imagegen") {
+      return buildImageGenResponse(msg);
+    }
+
+    // ── HELLO ─────────────────────────────────────────────────
     if (intent === "hello") {
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Ready</span>
-          <span class="mk-label">Maken — build space</span>
-        </div>
-        <p class="mk-lead">Hey! I'm Maken — your instant build workspace. I don't just chat, I make things.</p>
-        <div class="mk-capability-grid">
-          <div class="mk-cap"><span>💻</span><b>Code</b><small>Any language</small></div>
-          <div class="mk-cap"><span>🌐</span><b>Websites</b><small>Full HTML/CSS/JS</small></div>
-          <div class="mk-cap"><span>✍️</span><b>Writing</b><small>Drafts & content</small></div>
-          <div class="mk-cap"><span>🔧</span><b>Debug</b><small>Fix errors fast</small></div>
-          <div class="mk-cap"><span>📋</span><b>Plan</b><small>Steps & guides</small></div>
-          <div class="mk-cap"><span>💡</span><b>Ideas</b><small>Brainstorm anything</small></div>
-        </div>
-        ${nextActions(["Build me a landing page","Write a Python script","Fix my code","Help me write an email"])}`;
+      return `<div class="mk-header">
+        <span class="mk-status done">Ready</span>
+        <span class="mk-label">Maken V3 · Build space</span>
+      </div>
+      <p class="mk-lead">Hey! I'm Maken — your build workspace. I make things, not just chat.</p>
+      <div class="mk-capability-grid">
+        <div class="mk-cap"><span>💻</span><b>Code</b><small>Any language</small></div>
+        <div class="mk-cap"><span>🌐</span><b>Websites</b><small>Full HTML/CSS/JS</small></div>
+        <div class="mk-cap"><span>✍️</span><b>Writing</b><small>Drafts & content</small></div>
+        <div class="mk-cap"><span>🔧</span><b>Debug</b><small>Fix errors fast</small></div>
+        <div class="mk-cap"><span>🎨</span><b>Images</b><small>AI image gen</small></div>
+        <div class="mk-cap"><span>🎤</span><b>Voice</b><small>Speak to build</small></div>
+      </div>
+      ${nextActions(["Generate an image of a futuristic city","Build me a landing page","Write a Python script","Fix my code error"])}`;
     }
 
-    // ── PYTHON CODE ───────────────────────────────────────────
+    // ── PYTHON ────────────────────────────────────────────────
     if (intent === "python") {
-      const topic = m.includes("sort") ? "sort" : m.includes("class") ? "class" : m.includes("read file") ? "file" : "starter";
+      const topic = m.includes("sort")?"sort":m.includes("class")?"class":m.includes("file")?"file":"starter";
       const snippets = {
-        "sort": "# Sort a list of items\nitems = [5, 2, 9, 1, 7, 3]\n\n# Ascending\nsorted_items = sorted(items)\nprint('Sorted:', sorted_items)\n\n# Descending\nreverse_sorted = sorted(items, reverse=True)\nprint('Reversed:', reverse_sorted)\n\n# Sort list of dicts by key\npeople = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]\nby_age = sorted(people, key=lambda x: x['age'])\nprint('By age:', by_age)",
-        "class": "# Python class with properties and methods\nclass Product:\n    def __init__(self, name, price, stock=0):\n        self.name = name\n        self.price = price\n        self.stock = stock\n\n    def apply_discount(self, percent):\n        return self.price * (1 - percent / 100)\n\n    def is_available(self):\n        return self.stock > 0\n\n    def __repr__(self):\n        return f'Product({self.name!r}, {self.price:.2f})'\n\n\n# Usage\nitem = Product('Laptop', 999.99, stock=5)\nprint(item)\nprint('Discounted:', item.apply_discount(10))\nprint('In stock:', item.is_available())",
-        "file": "# Read and write files in Python\nimport json\nfrom pathlib import Path\n\ndef read_text(path):\n    return Path(path).read_text(encoding='utf-8')\n\ndef write_text(path, content):\n    Path(path).write_text(content, encoding='utf-8')\n\ndef read_json(path):\n    with open(path, 'r') as f:\n        return json.load(f)\n\ndef write_json(path, data):\n    with open(path, 'w') as f:\n        json.dump(data, f, indent=2)\n\n# Example\ndata = {'name': 'Maken', 'version': 1}\nwrite_json('config.json', data)\nprint(read_json('config.json'))",
-        "starter": "# Python starter — clean foundation\nfrom dataclasses import dataclass\nfrom typing import Optional\n\n@dataclass\nclass Config:\n    name: str\n    version: str = '1.0.0'\n    debug: bool = False\n\ndef process(items, limit=None):\n    result = [item for item in items if item]\n    return result[:limit] if limit else result\n\ndef main():\n    cfg = Config(name='MyApp')\n    data = ['alpha', 'beta', '', 'gamma', None, 'delta']\n    output = process(data, limit=3)\n    print(f'[{cfg.name}] Output:', output)\n\nif __name__ == '__main__':\n    main()"
+        "sort": "items = [5, 2, 9, 1, 7, 3]\n\n# Ascending\nprint(sorted(items))\n\n# Descending\nprint(sorted(items, reverse=True))\n\n# Sort dicts by key\npeople = [{'name':'Alice','age':30},{'name':'Bob','age':25}]\nprint(sorted(people, key=lambda x: x['age']))",
+        "class": "class Product:\n    def __init__(self, name, price, stock=0):\n        self.name = name\n        self.price = price\n        self.stock = stock\n\n    def discount(self, pct):\n        return self.price * (1 - pct/100)\n\n    def in_stock(self):\n        return self.stock > 0\n\n    def __repr__(self):\n        return f'Product({self.name!r}, {self.price})'\n\np = Product('Laptop', 999, stock=5)\nprint(p)\nprint('Discounted:', p.discount(10))",
+        "file": "import json\nfrom pathlib import Path\n\ndef read_json(path):\n    with open(path) as f:\n        return json.load(f)\n\ndef write_json(path, data):\n    with open(path, 'w') as f:\n        json.dump(data, f, indent=2)\n\n# Usage\ndata = {'name': 'Maken', 'version': 3}\nwrite_json('config.json', data)\nprint(read_json('config.json'))",
+        "starter": "from dataclasses import dataclass\nfrom typing import Optional\n\n@dataclass\nclass Config:\n    name: str\n    version: str = '1.0.0'\n    debug: bool = False\n\ndef process(items, limit=None):\n    result = [x for x in items if x]\n    return result[:limit] if limit else result\n\nif __name__ == '__main__':\n    cfg = Config(name='MyApp')\n    out = process(['a','','b',None,'c'], limit=2)\n    print(cfg, out)"
       };
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Built</span>
-          <span class="mk-label">Python · ${topic}</span>
-        </div>
-        ${codeBlock("python", snippets[topic], `<button class="mk-btn runBtn">▶ Run idea</button>`)}
-        ${tagRow(["Python 3.10+","Type hints","Clean structure","Ready to use"])}
-        ${nextActions(["Add error handling to this","Convert this to a class","Add unit tests","Explain this step by step"])}`;
+      return `<div class="mk-header">
+        <span class="mk-status done">Built</span>
+        <span class="mk-label">Python · ${topic}</span>
+      </div>
+      ${codeBlock("python", snippets[topic])}
+      ${tagRow(["Python 3.10+","Type hints","Ready to run","Copy & paste"])}
+      ${nextActions(["Add error handling","Convert to a class","Add unit tests","Explain step by step"])}`;
     }
 
-    // ── JAVASCRIPT ───────────────────────────────────────────
+    // ── JAVASCRIPT ────────────────────────────────────────────
     if (intent === "js") {
-      const isAsync = m.includes("api") || m.includes("fetch") || m.includes("async");
-      const isReact = m.includes("react") || m.includes("component");
+      const isReact = m.includes("react")||m.includes("component");
+      const isAsync = m.includes("fetch")||m.includes("async")||m.includes("api");
       const code = isReact
-        ? `// React component — clean & functional\nimport { useState, useEffect } from "react";\n\nfunction DataCard({ title, fetchUrl }) {\n  const [data, setData] = useState(null);\n  const [loading, setLoading] = useState(true);\n  const [error, setError] = useState(null);\n\n  useEffect(() => {\n    fetch(fetchUrl)\n      .then(res => res.json())\n      .then(json => setData(json))\n      .catch(err => setError(err.message))\n      .finally(() => setLoading(false));\n  }, [fetchUrl]);\n\n  if (loading) return <p>Loading…</p>;\n  if (error)   return <p>Error: {error}</p>;\n  return (\n    <div className="card">\n      <h2>{title}</h2>\n      <pre>{JSON.stringify(data, null, 2)}</pre>\n    </div>\n  );\n}\n\nexport default DataCard;`
+        ? "import { useState, useEffect } from 'react';\n\nfunction DataCard({ title, url }) {\n  const [data, setData] = useState(null);\n  const [loading, setLoading] = useState(true);\n\n  useEffect(() => {\n    fetch(url)\n      .then(r => r.json())\n      .then(setData)\n      .finally(() => setLoading(false));\n  }, [url]);\n\n  if (loading) return <p>Loading…</p>;\n  return (\n    <div className=\"card\">\n      <h2>{title}</h2>\n      <pre>{JSON.stringify(data, null, 2)}</pre>\n    </div>\n  );\n}\n\nexport default DataCard;"
         : isAsync
-        ? `// Async fetch with error handling & retries\nasync function fetchData(url, options = {}) {\n  const { retries = 3, timeout = 5000 } = options;\n\n  for (let attempt = 1; attempt <= retries; attempt++) {\n    const controller = new AbortController();\n    const timer = setTimeout(() => controller.abort(), timeout);\n\n    try {\n      const res = await fetch(url, { signal: controller.signal });\n      clearTimeout(timer);\n      if (!res.ok) throw new Error(\`HTTP \${res.status}\`);\n      return await res.json();\n    } catch (err) {\n      clearTimeout(timer);\n      if (attempt === retries) throw err;\n      await new Promise(r => setTimeout(r, attempt * 500));\n    }\n  }\n}\n\n// Usage\nfetchData("https://api.example.com/data")\n  .then(data => console.log("✓", data))\n  .catch(err => console.error("✗", err.message));`
-        : `// Modern JavaScript — utility toolkit\nconst utils = {\n  // Debounce — delay rapid calls\n  debounce(fn, ms = 300) {\n    let timer;\n    return (...args) => {\n      clearTimeout(timer);\n      timer = setTimeout(() => fn(...args), ms);\n    };\n  },\n\n  // Group array by key\n  groupBy(arr, key) {\n    return arr.reduce((acc, item) => {\n      (acc[item[key]] ??= []).push(item);\n      return acc;\n    }, {});\n  },\n\n  // Deep clone without JSON tricks\n  clone(obj) {\n    return structuredClone(obj);\n  },\n\n  // Format date nicely\n  formatDate(date, locale = "en-IN") {\n    return new Intl.DateTimeFormat(locale, {\n      day: "numeric", month: "short", year: "numeric"\n    }).format(new Date(date));\n  }\n};\n\n// Demo\nconst orders = [{id:1,status:"done"},{id:2,status:"pending"},{id:3,status:"done"}];\nconsole.log(utils.groupBy(orders, "status"));`;
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Built</span>
-          <span class="mk-label">JavaScript · ${isReact?"React component":isAsync?"Async/Await":"Utilities"}</span>
-        </div>
-        ${codeBlock("javascript", code)}
-        ${tagRow([isReact?"React":"Vanilla JS", isAsync?"Async/Await":"ES2023", "No dependencies","Copy & use"])}
-        ${nextActions(["Add TypeScript types","Add unit tests","Explain this code","Make it handle errors better"])}`;
+        ? "async function fetchData(url, retries = 3) {\n  for (let i = 1; i <= retries; i++) {\n    try {\n      const res = await fetch(url);\n      if (!res.ok) throw new Error(`HTTP ${res.status}`);\n      return await res.json();\n    } catch (err) {\n      if (i === retries) throw err;\n      await new Promise(r => setTimeout(r, i * 500));\n    }\n  }\n}\n\nfetchData('https://api.example.com/data')\n  .then(data => console.log('OK', data))\n  .catch(err => console.error('Failed:', err.message));"
+        : "const utils = {\n  debounce(fn, ms = 300) {\n    let t;\n    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };\n  },\n\n  groupBy(arr, key) {\n    return arr.reduce((acc, item) => {\n      (acc[item[key]] ??= []).push(item);\n      return acc;\n    }, {});\n  },\n\n  formatDate(date) {\n    return new Intl.DateTimeFormat('en-IN', {\n      day:'numeric', month:'short', year:'numeric'\n    }).format(new Date(date));\n  }\n};\n\nconst orders = [{id:1,status:'done'},{id:2,status:'pending'},{id:3,status:'done'}];\nconsole.log(utils.groupBy(orders, 'status'));";
+      return `<div class="mk-header">
+        <span class="mk-status done">Built</span>
+        <span class="mk-label">JavaScript · ${isReact?"React":isAsync?"Async/Await":"Utilities"}</span>
+      </div>
+      ${codeBlock("javascript", code)}
+      ${tagRow([isReact?"React 18":"Vanilla JS",isAsync?"Async":"ES2023","No dependencies","Copy & use"])}
+      ${nextActions(["Add TypeScript types","Add error handling","Write unit tests","Explain this code"])}`;
     }
 
-    // ── WEBSITE / LANDING PAGE ────────────────────────────────
+    // ── WEBSITE / HTML ────────────────────────────────────────
     if (intent === "website" || intent === "html") {
       const isDark = m.includes("dark");
       const isPortfolio = m.includes("portfolio");
-      const isSaas = m.includes("saas") || m.includes("startup") || m.includes("product");
-      const label = isPortfolio ? "Portfolio" : isSaas ? "SaaS landing" : "Landing page";
-      const bgColor    = isDark ? "#0b0b0b" : "#f5f5f3";
-      const textColor  = isDark ? "#e8eaf0" : "#111";
-      const pageTitle  = isPortfolio ? "My Portfolio" : isSaas ? "Launch — Your Product" : "My Page";
-      const h1Text     = isPortfolio ? "I build things for the web" : "The fastest way to ship your idea";
-      const pText      = isPortfolio ? "Designer and developer. Open to freelance work." : "No setup. No waiting. Just open and start building.";
-      const btnText    = isPortfolio ? "See my work" : "Get started free";
-      const themeAttr  = isDark ? "dark" : "light";
-
-      const html = "&lt;!DOCTYPE html&gt;\n" +
-"&lt;html lang=\"en\" data-theme=\"" + themeAttr + "\"&gt;\n" +
-"&lt;head&gt;\n" +
-"  &lt;meta charset=\"UTF-8\"&gt;\n" +
-"  &lt;meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"&gt;\n" +
-"  &lt;title&gt;" + pageTitle + "&lt;/title&gt;\n" +
-"  &lt;style&gt;\n" +
-"    * { margin:0; padding:0; box-sizing:border-box; }\n" +
-"    :root { --bg:" + bgColor + "; --text:" + textColor + "; --accent:#4f8fff; }\n" +
-"    body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; }\n" +
-"    header { padding:20px 40px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #222; }\n" +
-"    .logo { font-weight:700; font-size:1.2rem; color:var(--accent); }\n" +
-"    nav a { margin-left:24px; color:var(--text); text-decoration:none; opacity:.7; }\n" +
-"    nav a:hover { opacity:1; }\n" +
-"    .hero { min-height:90vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 20px; }\n" +
-"    .hero h1 { font-size:clamp(2rem,6vw,4rem); font-weight:700; line-height:1.15; max-width:700px; }\n" +
-"    .hero p { margin:20px 0; font-size:1.1rem; opacity:.7; max-width:500px; }\n" +
-"    .cta { background:var(--accent); color:#fff; border:none; padding:14px 32px; border-radius:99px; font-size:1rem; font-weight:700; cursor:pointer; }\n" +
-"    .cta:hover { opacity:.85; }\n" +
-"    @media(max-width:600px){ nav { display:none; } }\n" +
-"  &lt;/style&gt;\n" +
-"&lt;/head&gt;\n" +
-"&lt;body&gt;\n" +
-"  &lt;header&gt;\n" +
-"    &lt;div class=\"logo\"&gt;" + (isPortfolio ? "Portfolio" : "Brand") + "&lt;/div&gt;\n" +
-"    &lt;nav&gt;\n" +
-"      &lt;a href=\"#\"&gt;Work&lt;/a&gt;\n" +
-"      &lt;a href=\"#\"&gt;About&lt;/a&gt;\n" +
-"      &lt;a href=\"#\"&gt;Contact&lt;/a&gt;\n" +
-"    &lt;/nav&gt;\n" +
-"  &lt;/header&gt;\n" +
-"  &lt;section class=\"hero\"&gt;\n" +
-"    &lt;h1&gt;" + h1Text + "&lt;/h1&gt;\n" +
-"    &lt;p&gt;" + pText + "&lt;/p&gt;\n" +
-"    &lt;button class=\"cta\"&gt;" + btnText + " &amp;rarr;&lt;/button&gt;\n" +
-"  &lt;/section&gt;\n" +
-"&lt;/body&gt;\n" +
-"&lt;/html&gt;";
+      const label = isPortfolio ? "Portfolio" : "Landing page";
+      const bgColor = isDark ? "#0b0b0b" : "#f5f5f3";
+      const textColor = isDark ? "#e8eaf0" : "#111";
       const themeTag = isDark ? "Dark theme" : "Light theme";
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Built</span>
-          <span class="mk-label">HTML · ${label}</span>
-        </div>
-        ${codeBlock("html", html, '<button class="mk-btn previewBtn">Preview</button>')}
-        ${tagRow(["Responsive", "Clean CSS", themeTag, "Copy & open in browser"])}
-        ${nextActions(["Add a features section","Make it dark themed","Add smooth scroll animations","Add a contact form"])}`;
+      const h1 = isPortfolio ? "I build things for the web" : "The fastest way to ship your idea";
+      const p  = isPortfolio ? "Open to freelance. Based in India." : "No setup. No login. Just start.";
+      const html = "&lt;!DOCTYPE html&gt;\n&lt;html lang=\"en\"&gt;\n&lt;head&gt;\n  &lt;meta charset=\"UTF-8\"&gt;\n  &lt;meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"&gt;\n  &lt;title&gt;My Page&lt;/title&gt;\n  &lt;style&gt;\n    *{margin:0;padding:0;box-sizing:border-box;}\n    body{background:" + bgColor + ";color:" + textColor + ";font-family:system-ui,sans-serif;}\n    header{padding:20px 40px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #222;}\n    .logo{font-weight:700;font-size:1.2rem;color:#4f8fff;}\n    nav a{margin-left:24px;color:inherit;text-decoration:none;opacity:.7;}\n    nav a:hover{opacity:1;}\n    .hero{min-height:90vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;}\n    h1{font-size:clamp(2rem,6vw,4rem);font-weight:700;line-height:1.15;max-width:700px;}\n    p{margin:20px 0;font-size:1.1rem;opacity:.7;max-width:500px;}\n    .cta{background:#4f8fff;color:#fff;border:none;padding:14px 32px;border-radius:99px;font-size:1rem;font-weight:700;cursor:pointer;}\n  &lt;/style&gt;\n&lt;/head&gt;\n&lt;body&gt;\n  &lt;header&gt;\n    &lt;div class=\"logo\"&gt;" + (isPortfolio?"Portfolio":"Brand") + "&lt;/div&gt;\n    &lt;nav&gt;&lt;a href=\"#\"&gt;Work&lt;/a&gt;&lt;a href=\"#\"&gt;About&lt;/a&gt;&lt;a href=\"#\"&gt;Contact&lt;/a&gt;&lt;/nav&gt;\n  &lt;/header&gt;\n  &lt;section class=\"hero\"&gt;\n    &lt;h1&gt;" + h1 + "&lt;/h1&gt;\n    &lt;p&gt;" + p + "&lt;/p&gt;\n    &lt;button class=\"cta\"&gt;Get started &amp;rarr;&lt;/button&gt;\n  &lt;/section&gt;\n&lt;/body&gt;\n&lt;/html&gt;";
+      return `<div class="mk-header">
+        <span class="mk-status done">Built</span>
+        <span class="mk-label">HTML · ${label}</span>
+      </div>
+      ${codeBlock("html", html)}
+      ${tagRow(["Responsive", "Clean CSS", themeTag, "Open in browser"])}
+      ${nextActions(["Add a features section","Add smooth scroll","Add a contact form","Make it dark themed"])}`;
     }
 
-    // ── CSS / STYLING ─────────────────────────────────────────
+    // ── CSS ───────────────────────────────────────────────────
     if (intent === "css") {
-      const isAnim = m.includes("anim") || m.includes("transition") || m.includes("hover");
+      const isAnim = m.includes("anim")||m.includes("transition")||m.includes("hover");
       const code = isAnim
-        ? `/* Smooth animations — ready to copy */\n\n/* Fade in on load */\n@keyframes fadeUp {\n  from { opacity: 0; transform: translateY(16px); }\n  to   { opacity: 1; transform: translateY(0); }\n}\n.fade-up { animation: fadeUp 0.5s ease both; }\n\n/* Shimmer loading skeleton */\n@keyframes shimmer {\n  from { background-position: 200% 0; }\n  to   { background-position: -200% 0; }\n}\n.skeleton {\n  background: linear-gradient(90deg, #1e1e1e 25%, #2a2a2a 50%, #1e1e1e 75%);\n  background-size: 200% 100%;\n  animation: shimmer 1.4s linear infinite;\n  border-radius: 6px;\n  height: 14px;\n}\n\n/* Button hover lift */\n.btn {\n  transition: transform 0.2s ease, box-shadow 0.2s ease;\n}\n.btn:hover {\n  transform: translateY(-2px);\n  box-shadow: 0 8px 24px rgba(79,143,255,0.25);\n}`
-        : `/* Modern CSS variables system */\n:root {\n  /* Colors */\n  --bg:       #0b0b0b;\n  --surface:  #111;\n  --border:   #1e1e1e;\n  --accent:   #4f8fff;\n  --text:     #e8eaf0;\n  --muted:    #888;\n\n  /* Spacing scale */\n  --space-xs: 4px;\n  --space-sm: 8px;\n  --space-md: 16px;\n  --space-lg: 32px;\n  --space-xl: 64px;\n\n  /* Border radius */\n  --radius-sm: 8px;\n  --radius:    14px;\n  --radius-lg: 24px;\n\n  /* Transitions */\n  --t: 0.22s cubic-bezier(0.4, 0, 0.2, 1);\n}\n\n/* Reset */\n*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }\nbody { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }\n\n/* Utility card */\n.card {\n  background: var(--surface);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: var(--space-md);\n  transition: border-color var(--t);\n}\n.card:hover { border-color: var(--accent); }`;
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Built</span>
-          <span class="mk-label">CSS · ${isAnim?"Animations":"Variable system"}</span>
-        </div>
-        ${codeBlock("css", code)}
-        ${tagRow(["Modern CSS","Copy & paste","No framework needed","Production ready"])}
-        ${nextActions(["Add dark/light mode toggle","Add responsive breakpoints","Add more animations","Convert to Tailwind classes"])}`;
+        ? "@keyframes fadeUp {\n  from { opacity:0; transform:translateY(16px); }\n  to   { opacity:1; transform:translateY(0); }\n}\n.fade-up { animation: fadeUp 0.5s ease both; }\n\n@keyframes shimmer {\n  from { background-position:200% 0; }\n  to   { background-position:-200% 0; }\n}\n.skeleton {\n  background: linear-gradient(90deg,#1e1e1e 25%,#2a2a2a 50%,#1e1e1e 75%);\n  background-size: 200% 100%;\n  animation: shimmer 1.4s linear infinite;\n  border-radius: 6px;\n  height: 14px;\n}\n\n.btn { transition: transform 0.2s, box-shadow 0.2s; }\n.btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(79,143,255,0.25); }"
+        : ":root {\n  --bg:#0b0b0b; --surface:#111; --border:#1e1e1e;\n  --accent:#4f8fff; --text:#e8eaf0; --muted:#888;\n  --space-sm:8px; --space-md:16px; --space-lg:32px;\n  --radius:14px; --t:0.22s cubic-bezier(0.4,0,0.2,1);\n}\n\n*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}\nbody{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;}\n\n.card {\n  background: var(--surface);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: var(--space-md);\n  transition: border-color var(--t);\n}\n.card:hover { border-color:var(--accent); }";
+      return `<div class="mk-header">
+        <span class="mk-status done">Built</span>
+        <span class="mk-label">CSS · ${isAnim?"Animations":"Variable system"}</span>
+      </div>
+      ${codeBlock("css", code)}
+      ${tagRow(["Modern CSS","No framework","Copy & paste","Production ready"])}
+      ${nextActions(["Add dark/light toggle","Add responsive breakpoints","Add more animations","Convert to Tailwind"])}`;
     }
 
     // ── FIX / DEBUG ───────────────────────────────────────────
     if (intent === "fix") {
-      const isUndefined = m.includes("undefined") || m.includes("null");
-      const isTypeError = m.includes("typeerror") || m.includes("type error");
-      return `
-        <div class="mk-header">
-          <span class="mk-status working">Debugging</span>
-          <span class="mk-label">Bug analysis</span>
-        </div>
-        <p class="mk-lead">Paste your code and I'll locate the issue. Here are the most common causes:</p>
-        ${stepList([
-          { title: isUndefined ? "Undefined / null access" : isTypeError ? "Type mismatch" : "Logic error", desc: isUndefined ? "A value you're trying to use doesn't exist yet — check your variable declarations and async timing." : isTypeError ? "You're passing the wrong type — check what the function expects vs what you're sending." : "The code runs but gives wrong output — trace values at each step." },
-          { title: "Where to look first", desc: "Check the line number in your error console. The issue is usually 1–2 lines above where it crashes." },
-          { title: "Quick fix pattern", desc: "Add <code>console.log()</code> before the crash line to see what values you're working with." }
-        ])}
-        ${codeBlock("javascript", `// Safe access patterns — prevent common errors\n\n// ✗ Unsafe\nconst name = user.profile.name; // crashes if user or profile is null\n\n// ✓ Optional chaining\nconst name = user?.profile?.name ?? "Guest";\n\n// ✓ Guard clause\nif (!data || !Array.isArray(data)) return [];\nreturn data.map(item => item.value);\n\n// ✓ Try/catch for async\ntry {\n  const result = await fetchData();\n  return result;\n} catch (err) {\n  console.error("Failed:", err.message);\n  return null;\n}`)}
-        ${nextActions(["Paste your code here","Show me the error message","Fix my async function","Help me add error handling"])}`;
+      return `<div class="mk-header">
+        <span class="mk-status working">Debugging</span>
+        <span class="mk-label">Bug analysis</span>
+      </div>
+      <p class="mk-lead">Paste your code and error message — I'll find and fix it. Common causes:</p>
+      ${stepList([
+        { title:"Check the error line", desc:"Open DevTools (F12) → Console. The line number tells you exactly where it broke." },
+        { title:"Trace your values", desc:"Add <code>console.log()</code> before the crash to see what each variable holds." },
+        { title:"Safe access patterns", desc:"Use optional chaining <code>obj?.prop</code> and <code>?? 'default'</code> to prevent null crashes." }
+      ])}
+      ${codeBlock("javascript", "// Common fixes\n\n// Null crash fix\nconst name = user?.profile?.name ?? 'Guest';\n\n// Array guard\nif (!Array.isArray(data)) return [];\nreturn data.map(item => item.value);\n\n// Async error handling\ntry {\n  const result = await fetchData();\n  return result;\n} catch (err) {\n  console.error('Failed:', err.message);\n  return null;\n}")}
+      ${nextActions(["Paste your code here","Show me the error message","Fix my async function","Add error handling to my code"])}`;
     }
 
     // ── EXPLAIN ───────────────────────────────────────────────
     if (intent === "explain") {
-      const topic = m.replace(/explain|what is|how does|how do|why does|tell me about|what does/gi,"").trim() || "this concept";
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Explained</span>
-          <span class="mk-label">${topic}</span>
-        </div>
-        <p class="mk-lead">Here's a clear breakdown of <strong>${topic}</strong>:</p>
-        ${stepList([
-          { title: "What it is", desc: `<strong>${topic}</strong> is a concept/tool/pattern used to solve a specific problem in software or design. It helps you write cleaner, more maintainable work.` },
-          { title: "Why it matters", desc: "Understanding this helps you make better decisions, avoid common mistakes, and build things that actually work the way you expect." },
-          { title: "When to use it", desc: "Use it when you need to handle complexity, improve performance, or follow established best practices in your project." }
-        ])}
-        ${codeBlock("example", `// Conceptual example of ${topic}\n// This shows the pattern in its simplest form\n\nfunction example(input) {\n  // 1. Validate input\n  if (!input) throw new Error("Input required");\n\n  // 2. Process\n  const result = transform(input);\n\n  // 3. Return clean output\n  return result;\n}`)}
-        <p class="mk-note">💡 Share more details about your specific use case and I'll give you a more precise explanation.</p>
-        ${nextActions([`Show me a real example of ${topic}`,`What are alternatives to ${topic}?`,"Give me a beginner-friendly breakdown","Explain with a diagram"])}`;
+      const topic = msg.replace(/explain|what is|how does|how do|why does|tell me about|what does/gi,"").trim() || "this";
+      return `<div class="mk-header">
+        <span class="mk-status done">Explained</span>
+        <span class="mk-label">${topic}</span>
+      </div>
+      ${stepList([
+        { title:"What it is", desc:`<strong>${topic}</strong> is a concept or tool used to solve a specific problem. It helps you build cleaner, more maintainable work.` },
+        { title:"Why it matters", desc:"Understanding this helps you make better decisions, avoid mistakes, and write code that works the way you expect." },
+        { title:"When to use it", desc:"Use it when you need to handle complexity, improve performance, or follow established patterns in your project." }
+      ])}
+      ${codeBlock("example", "// Simple conceptual example\nfunction example(input) {\n  if (!input) throw new Error('Input required');\n  const result = transform(input); // your logic here\n  return result;\n}")}
+      <p class="mk-note">💡 Give me more context and I'll explain it specifically for your use case.</p>
+      ${nextActions([`Show a real example of ${topic}`,`What are alternatives to ${topic}?`,"Give me a beginner breakdown","Explain with a diagram"])}`;
     }
 
-    // ── WRITING ───────────────────────────────────────────────
+    // ── WRITE ─────────────────────────────────────────────────
     if (intent === "write") {
-      const isEmail   = m.includes("email") || m.includes("mail") || m.includes("message");
-      const isBlog    = m.includes("blog") || m.includes("article") || m.includes("post");
-      const isEssay   = m.includes("essay") || m.includes("report");
-      const type      = isEmail ? "Email" : isBlog ? "Blog post" : isEssay ? "Essay" : "Draft";
-      const template  = isEmail
-        ? `Subject: [Clear, specific subject line]\n\nHi [Name],\n\nI'm reaching out because [one sentence reason].\n\n[Core message in 2–3 sentences. Be specific. State what you need.]\n\n[Optional: One line of context or benefit for them.]\n\nLet me know if you have any questions.\n\nBest,\n[Your name]`
+      const isEmail = m.includes("email")||m.includes("mail")||m.includes("message");
+      const isBlog  = m.includes("blog")||m.includes("article")||m.includes("post");
+      const type    = isEmail?"Email":isBlog?"Blog post":"Draft";
+      const template = isEmail
+        ? "Subject: [Clear, specific subject line]\n\nHi [Name],\n\nI'm reaching out because [one sentence reason].\n\n[Core message in 2-3 sentences. Be specific. State what you need.]\n\n[Optional: one line of context or value for them.]\n\nBest,\n[Your name]"
         : isBlog
-        ? `# [Compelling headline — specific & useful]\n\n## The problem\n[1–2 sentences on what pain point this solves]\n\n## What most people do wrong\n[The common mistake — this is what hooks the reader]\n\n## The better way\n[Your main insight or method, 2–3 paragraphs]\n\n## Step by step\n1. [Action step]\n2. [Action step]\n3. [Action step]\n\n## Key takeaway\n[One sentence that summarizes the whole post]\n\n---\n*[Optional: call to action or next step]*`
-        : `## Title\n\n### Introduction\n[Hook the reader in 2 sentences. State what this is about.]\n\n### Point 1 — [Main argument]\n[Evidence or reasoning]\n\n### Point 2 — [Supporting point]\n[Evidence or reasoning]\n\n### Point 3 — [Counterpoint or nuance]\n[Acknowledge complexity]\n\n### Conclusion\n[Summarize and close with a clear takeaway.]`;
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Drafted</span>
-          <span class="mk-label">Writing · ${type}</span>
-        </div>
-        ${codeBlock("text", template, `<button class="mk-btn sendBtn">Send via email</button>`)}
-        ${tagRow([type,"Editable","Copy to clipboard","Ready to use"])}
-        ${nextActions(["Make this more formal","Make this shorter and punchier","Rewrite the opening","Translate this to Tamil"])}`;
+        ? "# [Compelling headline]\n\n## The problem\n[1-2 sentences on the pain point]\n\n## What most people do wrong\n[The hook]\n\n## The better way\n[Your main insight, 2-3 paragraphs]\n\n## Step by step\n1. [Action]\n2. [Action]\n3. [Action]\n\n## Key takeaway\n[One sentence summary]"
+        : "## Title\n\n### Introduction\n[Hook the reader. State what this is about.]\n\n### Main point\n[Evidence or reasoning]\n\n### Supporting point\n[Evidence or reasoning]\n\n### Conclusion\n[Summarize with a clear takeaway.]";
+      return `<div class="mk-header">
+        <span class="mk-status done">Drafted</span>
+        <span class="mk-label">Writing · ${type}</span>
+      </div>
+      ${codeBlock("text", template)}
+      ${tagRow([type,"Editable","Copy to clipboard","Ready to use"])}
+      ${nextActions(["Make this more formal","Make it shorter","Rewrite the opening","Translate to Tamil"])}`;
     }
 
-    // ── PLAN / ROADMAP ────────────────────────────────────────
+    // ── PLAN ──────────────────────────────────────────────────
     if (intent === "plan") {
-      const topic = m.replace(/plan|roadmap|steps|how to|guide|tutorial|learn|start|begin|checklist/gi,"").trim() || "your goal";
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Planned</span>
-          <span class="mk-label">Roadmap · ${topic}</span>
-        </div>
-        <p class="mk-lead">Here's a clear step-by-step plan for <strong>${topic}</strong>:</p>
-        ${stepList([
-          { title: "Start — understand the scope", desc: "Before writing a single line or word, clarify what done looks like. What's the smallest version that's useful?" },
-          { title: "Set up your environment", desc: "Get the right tools in place. Don't over-engineer — use the simplest setup that works for your goal." },
-          { title: "Build the core first", desc: "Focus on the main thing only. Skip edge cases, skip polish, skip features that aren't essential yet." },
-          { title: "Test with real input", desc: "Run it with actual data or use cases. See where it breaks or feels wrong." },
-          { title: "Refine and ship", desc: "Fix what matters. Clean up the rough edges. Then get it out — perfectionism is the enemy of done." }
-        ])}
-        ${nextActions([`Give me resources for ${topic}`,"Break step 1 into smaller tasks","Write the code for this plan","Help me estimate how long this takes"])}`;
+      const topic = msg.replace(/plan|roadmap|steps|how to|guide|tutorial|learn|start|begin|checklist/gi,"").trim() || "your goal";
+      return `<div class="mk-header">
+        <span class="mk-status done">Planned</span>
+        <span class="mk-label">Roadmap · ${topic}</span>
+      </div>
+      ${stepList([
+        { title:"Define what done looks like", desc:"Before writing a line, clarify the smallest version that's actually useful." },
+        { title:"Set up your environment", desc:"Get the right tools. Don't over-engineer — use the simplest setup that works." },
+        { title:"Build the core first", desc:"Focus on the main thing only. Skip edge cases and polish for now." },
+        { title:"Test with real input", desc:"Run it with actual data. See where it breaks or feels wrong." },
+        { title:"Refine and ship", desc:"Fix what matters. Clean the rough edges. Then get it out — done beats perfect." }
+      ])}
+      ${nextActions([`Resources for ${topic}`,"Break step 1 into tasks","Write the code for this plan","Estimate how long this takes"])}`;
     }
 
-    // ── IDEAS / BRAINSTORM ────────────────────────────────────
+    // ── IDEAS ─────────────────────────────────────────────────
     if (intent === "idea") {
-      const topic = m.replace(/idea|suggest|recommend|brainstorm|inspiration|options|what should|help me choose/gi,"").trim() || "your project";
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Generated</span>
-          <span class="mk-label">Ideas · ${topic}</span>
-        </div>
-        <p class="mk-lead">Here are 6 directions for <strong>${topic}</strong>. Pick one and build from there:</p>
-        <div class="mk-idea-grid">
-          <div class="mk-idea-card"><div class="mk-idea-num">A</div><div><b>Minimal version</b><p>The smallest thing that works. Ship in a day.</p></div></div>
-          <div class="mk-idea-card"><div class="mk-idea-num">B</div><div><b>Tool approach</b><p>Build it as a utility — fast input, instant output.</p></div></div>
-          <div class="mk-idea-card"><div class="mk-idea-num">C</div><div><b>Automation angle</b><p>What if this ran on its own without input each time?</p></div></div>
-          <div class="mk-idea-card"><div class="mk-idea-num">D</div><div><b>Visual first</b><p>Start with the UI — make it feel real before the logic.</p></div></div>
-          <div class="mk-idea-card"><div class="mk-idea-num">E</div><div><b>API-powered</b><p>Connect to existing data — don't reinvent the wheel.</p></div></div>
-          <div class="mk-idea-card"><div class="mk-idea-num">F</div><div><b>Collaboration mode</b><p>Make it shareable — two people using it multiplies the value.</p></div></div>
-        </div>
-        ${nextActions(["Build option A","Expand on option B","Compare pros and cons","Give me more niche ideas"])}`;
+      const topic = msg.replace(/idea|suggest|recommend|brainstorm|what should|help me choose/gi,"").trim() || "your project";
+      return `<div class="mk-header">
+        <span class="mk-status done">Generated</span>
+        <span class="mk-label">Ideas · ${topic}</span>
+      </div>
+      <p class="mk-lead">6 directions for <strong>${topic}</strong> — pick one and build:</p>
+      <div class="mk-idea-grid">
+        <div class="mk-idea-card"><div class="mk-idea-num">A</div><div><b>Minimal version</b><p>Smallest thing that works. Ship in a day.</p></div></div>
+        <div class="mk-idea-card"><div class="mk-idea-num">B</div><div><b>Tool approach</b><p>Fast input, instant output. Pure utility.</p></div></div>
+        <div class="mk-idea-card"><div class="mk-idea-num">C</div><div><b>Automation</b><p>What if this ran on its own without input each time?</p></div></div>
+        <div class="mk-idea-card"><div class="mk-idea-num">D</div><div><b>Visual first</b><p>Start with the UI — make it feel real before the logic.</p></div></div>
+        <div class="mk-idea-card"><div class="mk-idea-num">E</div><div><b>API-powered</b><p>Connect to existing data — don't reinvent the wheel.</p></div></div>
+        <div class="mk-idea-card"><div class="mk-idea-num">F</div><div><b>Shareable</b><p>Make it collaborative — two users multiplies the value.</p></div></div>
+      </div>
+      ${nextActions(["Build option A","Expand on option B","Compare pros and cons","Give me more niche ideas"])}`;
     }
 
-    // ── MATH ─────────────────────────────────────────────────
+    // ── MATH ──────────────────────────────────────────────────
     if (intent === "math") {
-      return `
-        <div class="mk-header">
-          <span class="mk-status done">Calculated</span>
-          <span class="mk-label">Math · Formula</span>
-        </div>
-        <p class="mk-lead">Share the numbers or formula and I'll work through it. Here's a quick reference:</p>
-        ${codeBlock("math", `// Common calculations\n\n// Percentage\nconst percent = (part / total) * 100;\n// e.g. (45 / 180) * 100 = 25%\n\n// Average\nconst avg = arr.reduce((a, b) => a + b, 0) / arr.length;\n\n// Compound interest\nconst A = P * Math.pow(1 + r/n, n*t);\n// P=principal, r=rate, n=times/year, t=years\n\n// Distance between two points\nconst d = Math.sqrt((x2-x1)**2 + (y2-y1)**2);\n\n// Round to N decimal places\nconst rounded = Math.round(num * 10**n) / 10**n;`)}
-        ${nextActions(["Calculate 15% of 4500","What is compound interest for ₹10,000 at 8% for 5 years","Solve this equation for me","Convert km to miles"])}`;
+      return `<div class="mk-header">
+        <span class="mk-status done">Ready</span>
+        <span class="mk-label">Math · Formulas</span>
+      </div>
+      <p class="mk-lead">Share your numbers and I'll calculate. Quick reference:</p>
+      ${codeBlock("math", "// Percentage\nconst pct = (part / total) * 100;\n// e.g. (45 / 180) * 100 = 25%\n\n// Average\nconst avg = arr.reduce((a,b) => a+b, 0) / arr.length;\n\n// Compound interest\nconst A = P * Math.pow(1 + r/n, n*t);\n// P=principal, r=annual rate, n=compounds/yr, t=years\n\n// Round to N decimals\nconst rounded = Math.round(num * 10**n) / 10**n;")}
+      ${nextActions(["Calculate 15% of 4500","Compound interest ₹10,000 at 8% for 5 years","Solve an equation","Convert units"])}`;
     }
 
-    // ── DEFAULT — workspace-style helpful response ─────────────
-    const topics = ["code","a website","an essay","a plan","a Python script","a landing page","a debug session","a writing draft"];
-    return `
-      <div class="mk-header">
-        <span class="mk-status working">On it</span>
-        <span class="mk-label">Maken workspace</span>
-      </div>
-      <p class="mk-lead">Got it — tell me more and I'll build it right now. Or pick something below to start immediately:</p>
-      <div class="mk-capability-grid">
-        <div class="mk-cap"><span>💻</span><b>Code</b><small>Any language</small></div>
-        <div class="mk-cap"><span>🌐</span><b>Website</b><small>Full HTML/CSS/JS</small></div>
-        <div class="mk-cap"><span>✍️</span><b>Write</b><small>Emails, blogs, essays</small></div>
-        <div class="mk-cap"><span>🔧</span><b>Debug</b><small>Paste your error</small></div>
-        <div class="mk-cap"><span>📋</span><b>Plan</b><small>Steps & roadmaps</small></div>
-        <div class="mk-cap"><span>💡</span><b>Ideas</b><small>Brainstorm anything</small></div>
-      </div>
-      ${nextActions([
-        pick(["Build me a landing page","Write a Python function"]),
-        pick(["Fix my JavaScript error","Draft a professional email"]),
-        pick(["Plan my project roadmap","Brainstorm app ideas"])
-      ])}`;
+    // ── DEFAULT ───────────────────────────────────────────────
+    return `<div class="mk-header">
+      <span class="mk-status working">On it</span>
+      <span class="mk-label">Maken V3 workspace</span>
+    </div>
+    <p class="mk-lead">Tell me more and I'll build it. Or start with one of these:</p>
+    <div class="mk-capability-grid">
+      <div class="mk-cap"><span>💻</span><b>Code</b><small>Any language</small></div>
+      <div class="mk-cap"><span>🌐</span><b>Website</b><small>Full HTML/CSS/JS</small></div>
+      <div class="mk-cap"><span>✍️</span><b>Write</b><small>Emails, blogs, essays</small></div>
+      <div class="mk-cap"><span>🔧</span><b>Debug</b><small>Paste your error</small></div>
+      <div class="mk-cap"><span>🎨</span><b>Image</b><small>AI generation</small></div>
+      <div class="mk-cap"><span>📋</span><b>Plan</b><small>Steps & roadmaps</small></div>
+    </div>
+    ${nextActions([
+      pick(["Build me a landing page","Write a Python function","Generate an image of a sunset"]),
+      pick(["Fix my JavaScript error","Draft a professional email"]),
+      pick(["Plan my project roadmap","Brainstorm app ideas"])
+    ])}`;
   }
 
-  // === CODE BLOCK ACTIONS (both old .code-block-container and new .mk-output-block) ===
+  // ============================================================
+  //  COPY BUTTON HANDLER
+  // ============================================================
   document.addEventListener("click", (e) => {
-
-    // ── New workspace mk-output-block copy ──
     if (e.target.classList.contains("copyBtn") || e.target.classList.contains("mk-btn")) {
       const block = e.target.closest(".mk-output-block");
       if (block) {
@@ -821,68 +907,29 @@ document.addEventListener("DOMContentLoaded", function () {
             const orig = e.target.textContent;
             e.target.textContent = "Copied ✓";
             e.target.classList.add("copied");
-            setTimeout(() => {
-              e.target.textContent = orig;
-              e.target.classList.remove("copied");
-            }, 2000);
+            setTimeout(() => { e.target.textContent = orig; e.target.classList.remove("copied"); }, 2000);
           });
         }
         return;
       }
     }
-
-    // ── Old code-block-container ──
-    const block = e.target.closest(".code-block-container");
-    if (!block) return;
-    const textEl = block.querySelector(".code-content");
-    if (!textEl) return;
-
-    if (e.target.classList.contains("copyBtn")) {
-      navigator.clipboard.writeText(textEl.textContent.trim()).then(() => {
-        e.target.textContent = "Copied ✓";
-        setTimeout(() => e.target.textContent = "Copy", 2000);
-      });
-    }
-
-    if (e.target.classList.contains("sendBtn")) {
-      const fullText = textEl.innerText.trim();
-      const subjectMatch = fullText.match(/Subject:\s*(.*)/i);
-      const subject = subjectMatch ? subjectMatch[1] : "Maken Draft";
-      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullText)}`;
-    }
   });
 
-  // === VOICE READ ===
-  document.addEventListener("click", function (e) {
-    if (e.target.classList.contains("voiceBtn")) {
-      const content = e.target.parentElement.innerText || "";
-      speakText(content);
-    }
-  });
-
-  function speakText(text) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    utterance.pitch = 1.0;
-    utterance.rate = 1.0;
-    window.speechSynthesis.speak(utterance);
-  }
-
-  // === UPLOAD DROPDOWN ===
+  // ============================================================
+  //  UPLOAD DROPDOWN
+  // ============================================================
   plusBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const isOpen = uploadDropdown.style.display === "block";
-    uploadDropdown.style.display = isOpen ? "none" : "block";
+    uploadDropdown.style.display = uploadDropdown.style.display === "block" ? "none" : "block";
   });
-
   document.addEventListener("click", (e) => {
-    if (!uploadDropdown.contains(e.target) && e.target !== plusBtn) {
+    if (!uploadDropdown.contains(e.target) && e.target !== plusBtn)
       uploadDropdown.style.display = "none";
-    }
   });
 
-  // === SCREENSHOT ===
+  // ============================================================
+  //  SCREENSHOT
+  // ============================================================
   screenshotBtn.addEventListener("click", async () => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -890,113 +937,73 @@ document.addEventListener("DOMContentLoaded", function () {
       const imageCapture = new ImageCapture(track);
       const blob = await imageCapture.takePhoto();
       track.stop();
-
       const reader = new FileReader();
       reader.onload = function () {
         const base64 = reader.result;
-        const messageDiv = document.createElement("div");
-        messageDiv.classList.add("message", "user-image");
+        if (!currentChatId) startNewConversation("Screenshot");
+        transitionToChat();
+        const div = document.createElement("div");
+        div.classList.add("message","user-image");
         const img = document.createElement("img");
         img.src = base64;
-        img.style.maxWidth = "200px";
-        img.style.borderRadius = "12px";
-        img.style.cursor = "pointer";
+        img.style.cssText = "max-width:200px;border-radius:12px;cursor:pointer;";
         img.onclick = () => openImageViewer(base64);
-        messageDiv.appendChild(img);
-        chatWindow.appendChild(messageDiv);
+        div.appendChild(img);
+        chatWindow.appendChild(div);
         scrollToBottom();
-
         saveMessage(currentChatId, "user", "", base64, "image", "screenshot.png");
       };
       reader.readAsDataURL(blob);
       uploadDropdown.style.display = "none";
-    } catch {
-      alert("Screenshot failed. Please allow screen sharing.");
-    }
+    } catch { alert("Screenshot failed — allow screen sharing."); }
   });
 
-  // === RESPONSIVE INPUT WIDTH ===
+  // ============================================================
+  //  RESPONSIVE WIDTH
+  // ============================================================
   function adjustLayout() {
     const w = window.innerWidth;
-    if (w <= 480) {
-      inputBox.style.width = "96%";
-    } else if (w <= 768) {
-      inputBox.style.width = "94%";
-    } else if (w <= 1024) {
-      inputBox.style.width = "80%";
-    } else {
-      inputBox.style.width = "52%";
-    }
+    inputBox.style.width = w<=480?"96%":w<=768?"94%":w<=1024?"80%":"52%";
   }
-
   window.addEventListener("resize", adjustLayout);
   adjustLayout();
 
-  // === INIT ===
-  updateHistorySidebar();
-
-  // === SERVICE WORKER ===
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("service-worker.js")
-        .then(() => console.log("SW registered"))
-        .catch(() => {});
-    });
-  }
+  // ============================================================
+  //  SCROLL PILL
+  // ============================================================
   const scrollBtn = document.getElementById("scrollBtn");
+  if (scrollBtn) {
     window.addEventListener("scroll", () => {
-      const dist = document.body.scrollHeight - window.scrollY - window.innerHeight;
-      scrollBtn.classList.toggle("visible", dist > 240);
+      scrollBtn.classList.toggle("visible", document.body.scrollHeight-window.scrollY-window.innerHeight>240);
     });
-    scrollBtn.addEventListener("click", () => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    });
+    scrollBtn.addEventListener("click", () => window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}));
+  }
 
-    /* ─── Wrap AI messages in avatar-row layout ───
-       This intercepts new .ai-message nodes added by
-       script.js and wraps them with the avatar column  */
-    (function() {
-      const chatWindow = document.getElementById("chatWindow");
-      if (!chatWindow) return;
+  // ============================================================
+  //  AI AVATAR WRAPPER
+  // ============================================================
+  (function(){
+    if (!chatWindow) return;
+    function wrap(node) {
+      if (!node.classList||!node.classList.contains("ai-message")) return;
+      if (node.closest(".ai-row")) return;
+      const row = document.createElement("div"); row.className="ai-row";
+      const av  = document.createElement("div"); av.className="ai-avatar";
+      av.innerHTML=`<svg viewBox="0 0 24 24" fill="none"><path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 6L8 13H12L11 18L16 11H12L13 6Z" fill="currentColor"/></svg>`;
+      const ct  = document.createElement("div"); ct.className="ai-content";
+      chatWindow.insertBefore(row, node);
+      node.parentNode&&node.parentNode.removeChild(node);
+      ct.appendChild(node); row.appendChild(av); row.appendChild(ct);
+      node.style.cssText="";
+    }
+    new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)wrap(n);}))).observe(chatWindow,{childList:true});
+  })();
 
-      function wrapAiNode(node) {
-        if (!node.classList || !node.classList.contains("ai-message")) return;
-        if (node.closest(".ai-row")) return; // already wrapped
+  // ============================================================
+  //  INIT
+  // ============================================================
+  updateHistorySidebar();
+  if ("serviceWorker" in navigator)
+    window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js").catch(()=>{}));
 
-        const row = document.createElement("div");
-        row.className = "ai-row";
-
-        const avatar = document.createElement("div");
-        avatar.className = "ai-avatar";
-        avatar.innerHTML = `<svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-          <path d="M13 6L8 13H12L11 18L16 11H12L13 6Z" fill="currentColor"/>
-        </svg>`;
-
-        const content = document.createElement("div");
-        content.className = "ai-content";
-
-        // Place row before node, move node inside
-        chatWindow.insertBefore(row, node);
-        node.parentNode && node.parentNode.removeChild(node);
-        content.appendChild(node);
-        row.appendChild(avatar);
-        row.appendChild(content);
-
-        // Strip conflicting inline styles from the inner node
-        node.style.cssText = "";
-      }
-
-      const observer = new MutationObserver(mutations => {
-        mutations.forEach(m => {
-          m.addedNodes.forEach(n => {
-            if (n.nodeType !== 1) return;
-            wrapAiNode(n);
-          });
-        });
-      });
-
-      observer.observe(chatWindow, { childList: true });
-    })();
 });
