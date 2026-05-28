@@ -1,0 +1,16 @@
+{
+  "name": "Maken",
+  "short_name": "Maken",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0b0b",
+  "theme_color": "#4f8fff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "svg+xml"
+    }
+  ]
+}
