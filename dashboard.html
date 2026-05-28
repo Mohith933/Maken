@@ -153,6 +153,245 @@
       .ai-row{max-width:100%;}
       .hero-actions-mini{gap:5px;}
     }
+
+    /* ══ V3: LIVE VOICE MODAL ══ */
+    .voice-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 28px;
+      animation: voiceFadeIn 0.25s ease;
+    }
+    .voice-modal.active { display:flex; }
+    @keyframes voiceFadeIn { from{opacity:0;} to{opacity:1;} }
+
+    .voice-modal-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .voice-orb {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #6fa3ff, #2563eb 60%, #0b2a6b);
+      box-shadow: 0 0 0 0 rgba(79,143,255,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.2s ease;
+    }
+    .voice-orb:hover { transform: scale(1.05); }
+    .voice-orb.listening {
+      animation: orbPulse 1.2s ease-in-out infinite;
+    }
+    @keyframes orbPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(79,143,255,0.6); }
+      60%  { box-shadow: 0 0 0 28px rgba(79,143,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(79,143,255,0); }
+    }
+    .voice-orb svg { color:#fff; }
+
+    /* waveform bars */
+    .voice-wave {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 36px;
+    }
+    .voice-wave .bar {
+      width: 4px;
+      border-radius: 99px;
+      background: var(--accent);
+      height: 6px;
+      transition: height 0.1s ease;
+    }
+    .voice-wave.active .bar:nth-child(1) { animation: wave 0.9s 0.0s ease-in-out infinite; }
+    .voice-wave.active .bar:nth-child(2) { animation: wave 0.9s 0.1s ease-in-out infinite; }
+    .voice-wave.active .bar:nth-child(3) { animation: wave 0.9s 0.2s ease-in-out infinite; }
+    .voice-wave.active .bar:nth-child(4) { animation: wave 0.9s 0.3s ease-in-out infinite; }
+    .voice-wave.active .bar:nth-child(5) { animation: wave 0.9s 0.15s ease-in-out infinite; }
+    .voice-wave.active .bar:nth-child(6) { animation: wave 0.9s 0.05s ease-in-out infinite; }
+    .voice-wave.active .bar:nth-child(7) { animation: wave 0.9s 0.25s ease-in-out infinite; }
+    @keyframes wave {
+      0%,100% { height:6px; }
+      50%      { height:28px; }
+    }
+
+    .voice-status {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e8eaf0;
+      letter-spacing: 0.02em;
+      min-height: 22px;
+      text-align: center;
+    }
+
+    .voice-transcript {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 14px 20px;
+      font-size: 1rem;
+      color: #fff;
+      min-width: 280px;
+      max-width: 420px;
+      text-align: center;
+      min-height: 52px;
+      line-height: 1.55;
+      font-style: italic;
+    }
+
+    .voice-modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .voice-action-btn {
+      padding: 10px 22px;
+      border-radius: 99px;
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+    .voice-action-btn.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .voice-action-btn.primary:hover { background: #6fa3ff; transform: translateY(-1px); }
+    .voice-action-btn.ghost {
+      background: rgba(255,255,255,0.08);
+      color: #bbb;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .voice-action-btn.ghost:hover { background: rgba(255,255,255,0.14); color:#fff; }
+
+    /* ══ V3: IMAGE GENERATION ══ */
+    .img-gen-card {
+      margin: 8px 0;
+    }
+    .img-gen-prompt-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .img-gen-loading {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+    .img-gen-shimmer {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: linear-gradient(
+        110deg,
+        var(--shimmer-a) 25%,
+        var(--shimmer-b) 50%,
+        var(--shimmer-a) 75%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.4s linear infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .img-gen-shimmer-icon {
+      font-size: 2rem;
+      animation: floatIcon 2s ease-in-out infinite;
+    }
+    @keyframes floatIcon {
+      0%,100% { transform: translateY(0); opacity:0.6; }
+      50%      { transform: translateY(-6px); opacity:1; }
+    }
+    .img-gen-shimmer-text {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .img-gen-steps {
+      display: flex;
+      gap: 6px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .img-gen-step {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .img-gen-step.done { color: #22c55e; }
+    .img-gen-step.active { color: var(--accent); }
+
+    .img-gen-result {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .img-gen-result img {
+      width: 100%;
+      display: block;
+      border-radius: 12px 12px 0 0;
+    }
+    .img-gen-toolbar {
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .img-gen-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .img-gen-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .img-gen-btn {
+      background: none;
+      border: 1px solid var(--border-light);
+      color: var(--text-muted);
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .img-gen-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: rgba(79,143,255,0.3); }
+
+    /* ══ Voice icon active in input ══ */
+    .voice-icon.live-active {
+      color: var(--accent) !important;
+      background: var(--accent-soft) !important;
+      border-radius: 50%;
+    }
   </style>
 </head>
 <body>
@@ -236,6 +475,7 @@
       <button id="codeBtn"><span class="chip-icon">💻</span> Fix my code</button>
       <button id="websiteBtn"><span class="chip-icon">🌐</span> Build a website</button>
       <button id="writeBtn"><span class="chip-icon">✍️</span> Write something</button>
+      <button id="imageGenBtn"><span class="chip-icon">🎨</span> Generate image</button>
     </div>
 
   </div>
@@ -302,6 +542,32 @@
 </div>
 
 <div class="footer" id="footer">Build space · Fast · Private · No login</div>
+
+<!-- ══ V3: LIVE VOICE MODAL ══ -->
+<div class="voice-modal" id="voiceModal">
+  <div class="voice-modal-inner">
+    <div class="voice-orb" id="voiceOrb">
+      <svg viewBox="0 0 24 24" width="40" height="40" fill="none">
+        <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 14 0h-2zM11 20h2v2h-2z"/>
+      </svg>
+    </div>
+
+    <div class="voice-wave" id="voiceWave">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+
+    <div class="voice-status" id="voiceStatus">Tap the mic to speak</div>
+
+    <div class="voice-transcript" id="voiceTranscript">Your words will appear here…</div>
+
+    <div class="voice-modal-actions">
+      <button class="voice-action-btn primary" id="voiceSendBtn">Send ↑</button>
+      <button class="voice-action-btn ghost" id="voiceCloseBtn">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script src="script.js"></script>
 <script>
