@@ -1,4 +1,4 @@
-const CACHE_NAME = "maken-v2";
+const CACHE_NAME = "maken-v3";
 
 const urlsToCache = [
   "index.html",
